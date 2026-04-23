@@ -77,7 +77,7 @@ async fn health() -> impl IntoResponse {
         UpdateBoxRequest,
         ClientConfig,
     )),
-    info(title = "PhraseBoard API", version = "0.1.0",
+    info(title = "TaskBoard API", version = "0.1.0",
          description = "Collaborative drag-and-drop task board"),
 )]
 pub struct ApiDoc;

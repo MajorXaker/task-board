@@ -1,4 +1,4 @@
-//! Configuration structs and environment-based loading for phrase-board.
+//! Configuration structs and environment-based loading for task-board.
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -70,7 +70,7 @@ pub fn load_config() -> Result<AppConfig> {
         password: env_or("DB_PASSWORD", "postgres"),
         host: env_or("DB_HOST", "localhost"),
         port: env_or("DB_PORT", "5432").parse::<u16>().context("DB_PORT must be a valid port")?,
-        database: env_or("DB_NAME", "phraseboard"),
+        database: env_or("DB_NAME", "taskboard"),
     };
 
     let server = ServerConfig {
