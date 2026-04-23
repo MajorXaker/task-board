@@ -9,28 +9,27 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 
 use axum::{
-    response::IntoResponse,
+    extract::Request,
+    middleware::{self, Next},
+    response::{IntoResponse, Response},
     routing::{delete, get, patch, post},
     Json, Router,
 };
 use sqlx::PgPool;
+use tower_http::services::ServeDir;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-use crate::boxes::PhraseBox;
-use crate::config::AppSettings;
-use crate::boards::Board;
-use crate::boxes::{BoardSnapshot, CreateBoxRequest, UpdateBoxRequest};
-use crate::boards::UpdateBoardRequest;
 use crate::api::config_routes::ClientConfig;
+use crate::boards::{Board, UpdateBoardRequest};
+use crate::boxes::{BoardSnapshot, CreateBoxRequest, PhraseBox, UpdateBoxRequest};
+use crate::config::AppSettings;
 
 /// Shared state available to every handler.
 #[derive(Clone)]
 pub struct AppState {
     pub db_pool: PgPool,
     pub app_settings: AppSettings,
-    /// Broadcast channel: whenever a box or board is mutated we push a
-    /// `StateChange` to all connected WebSocket clients.
     pub tx: Arc<broadcast::Sender<StateChange>>,
 }
 
@@ -41,11 +40,13 @@ pub enum StateChange {
     BoxCreated(PhraseBox),
     BoxUpdated(PhraseBox),
     BoxDeleted { id: uuid::Uuid, board_id: i32 },
+    BoardCreated(Board),
     BoardUpdated(Board),
+    BoardDeleted { board_id: i32 },
     BoardCleared { board_id: i32 },
 }
 
-/// `GET /api/health` — public liveness probe.
+/// `GET /api/health`
 #[utoipa::path(
     get,
     path = "/api/health",
@@ -61,8 +62,10 @@ async fn health() -> impl IntoResponse {
         health,
         config_routes::get_config,
         board_routes::list_boards,
+        board_routes::create_board,
         board_routes::get_board,
         board_routes::update_board,
+        board_routes::delete_board,
         board_routes::clear_board,
         box_routes::list_boxes,
         box_routes::list_all_boxes,
@@ -73,6 +76,7 @@ async fn health() -> impl IntoResponse {
     components(schemas(
         Board,
         UpdateBoardRequest,
+        crate::boards::CreateBoardRequest,
         PhraseBox,
         BoardSnapshot,
         CreateBoxRequest,
@@ -84,36 +88,47 @@ async fn health() -> impl IntoResponse {
 )]
 pub struct ApiDoc;
 
-/// Build and return the full axum [`Router`].
+/// Build the full axum [`Router`].
 ///
-/// # Route method merging
-/// In Axum 0.7 multiple `.route()` calls with the **same path** silently
-/// replace each other.  All methods for a given path must be combined in a
-/// single `.route()` call using method-chaining (`.get(...).post(...)`).
+/// ## Routing rules
+/// - All API endpoints live under `/api/…`
+/// - Static files are served from `static_dir` for paths that match actual files
+/// - Everything else (unknown paths, SPA client routes) falls back to `index.html`
+/// - The `/api` prefix is matched first; `ServeDir` never sees `/api/…` paths
 pub fn create_router(state: AppState, enable_docs: bool, static_dir: &str) -> Router {
-    let api = Router::new()
+    // ── API sub-router ──────────────────────────────────────────────────────
+    //
+    // IMPORTANT: In Axum 0.7 calling .route() twice with the same path
+    // silently replaces the first registration.  All HTTP methods for a
+    // given path MUST be combined in a single .route() call.
+    let mut api = Router::new()
         .route("/health", get(health))
         .route("/config", get(config_routes::get_config))
-        // boards — GET list + (no POST, boards are pre-seeded)
-        .route("/boards", get(board_routes::list_boards))
-        // boards/:id — GET single + PATCH update (methods merged on one path)
+        // boards collection
+        .route(
+            "/boards",
+            get(board_routes::list_boards).post(board_routes::create_board),
+        )
+        // single board
         .route(
             "/boards/{id}",
-            get(board_routes::get_board).patch(board_routes::update_board),
+            get(board_routes::get_board)
+                .patch(board_routes::update_board)
+                .delete(board_routes::delete_board),
         )
-        // boards/:id/boxes — GET list + POST create (methods merged on one path)
+        // boxes on a board
         .route(
             "/boards/{board_id}/boxes",
             get(box_routes::list_boxes).post(box_routes::create_box),
         )
-        // boards/:id/boxes/clear — DELETE all boxes on a board
+        // clear all boxes on a board
         .route(
             "/boards/{board_id}/boxes/clear",
             delete(board_routes::clear_board),
         )
-        // boxes — GET all
+        // all boxes across all boards
         .route("/boxes", get(box_routes::list_all_boxes))
-        // boxes/:id — PATCH update + DELETE remove (methods merged on one path)
+        // single box
         .route(
             "/boxes/{id}",
             patch(box_routes::update_box).delete(box_routes::delete_box),
@@ -122,19 +137,38 @@ pub fn create_router(state: AppState, enable_docs: bool, static_dir: &str) -> Ro
         .route("/ws", get(ws::ws_handler))
         .with_state(state.clone());
 
-    let api = if enable_docs {
-        api.merge(SwaggerUi::new("/api/docs").url("/api/docs/openapi.json", ApiDoc::openapi()))
-    } else {
-        api
-    };
+    if enable_docs {
+        api = api.merge(
+            SwaggerUi::new("/api/docs").url("/api/docs/openapi.json", ApiDoc::openapi()),
+        );
+    }
 
-    use tower_http::services::{ServeDir, ServeFile};
+    // ── Static file serving + SPA fallback ─────────────────────────────────
+    //
+    // Strategy: mount the API router under /api first (highest priority),
+    // then serve static files with ServeDir.  ServeDir only handles paths
+    // that do NOT start with /api — enforced by the middleware below.
+    // Paths that don't match any static file are rewritten to /index.html
+    // so client-side routing works.
+    let static_dir = static_dir.to_string();
+    let spa_fallback = axum::routing::get(move || {
+        let path = format!("{}/index.html", static_dir);
+        async move {
+            match tokio::fs::read(path).await {
+                Ok(bytes) => axum::response::Response::builder()
+                    .header("Content-Type", "text/html; charset=utf-8")
+                    .body(axum::body::Body::from(bytes))
+                    .unwrap(),
+                Err(_) => axum::response::Response::builder()
+                    .status(404)
+                    .body(axum::body::Body::from("index.html not found"))
+                    .unwrap(),
+            }
+        }
+    });
+
     Router::new()
         .nest("/api", api)
-        .nest_service(
-            "/",
-            ServeDir::new(static_dir).not_found_service(ServeFile::new(
-                format!("{}/index.html", static_dir),
-            )),
-        )
+        .nest_service("/static", ServeDir::new("static"))
+        .fallback(spa_fallback)
 }

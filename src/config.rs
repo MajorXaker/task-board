@@ -51,6 +51,8 @@ pub struct AppSettings {
     /// When true, the "Add / Manage" controls move to a dedicated tab
     /// instead of living in the top toolbar.
     pub separate_add_tab: bool,
+    /// Maximum number of boards the user can create.
+    pub max_boards: u8,
 }
 
 impl Default for AppSettings {
@@ -60,6 +62,7 @@ impl Default for AppSettings {
             default_canvas_height: 800.0,
             delete_tap_count: 3,
             separate_add_tab: false,
+            max_boards: 5,
         }
     }
 }
@@ -91,6 +94,7 @@ pub fn load_config() -> Result<AppConfig> {
             .parse::<u8>()
             .context("DELETE_TAP_COUNT must be 1-255")?,
         separate_add_tab: env_or("SEPARATE_ADD_TAB", "false").to_lowercase() == "true",
+        max_boards: env_or("MAX_BOARDS", "5").parse::<u8>().context("MAX_BOARDS must be 1-255")?,
     };
 
     Ok(AppConfig { database: db, server, app })

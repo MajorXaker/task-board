@@ -671,6 +671,7 @@ let separateAddTab = false;  // overridden from /api/config
 
 const tapState = {};        // per-box tap tracking
 let knownBoxIds = new Set();
+let maxBoards = 5;  // overridden from /api/config
 
 // ════════════════════════════════════════════════════════
 //  Theme
@@ -886,6 +887,13 @@ function renderManageBoardList() {
   const list = document.getElementById('manage-board-list');
   if (!list) return;
   list.innerHTML = '';
+
+  // Board count indicator
+  const counter = document.createElement('p');
+  counter.style.cssText = 'font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-3)';
+  counter.textContent = `${boards.length} / ${maxBoards} boards`;
+  list.appendChild(counter);
+
   boards.forEach(b => {
     const row = document.createElement('div');
     row.className = 'board-row';
@@ -903,33 +911,67 @@ function renderManageBoardList() {
 
     const editBtn = document.createElement('button');
     editBtn.className = 'btn btn-ghost';
-    editBtn.style.fontSize = 'var(--text-xs)';
-    editBtn.style.padding = 'var(--space-1) var(--space-3)';
+    editBtn.style.cssText = 'font-size:var(--text-xs);padding:var(--space-1) var(--space-3)';
     editBtn.textContent = '✎ Edit';
     editBtn.addEventListener('click', () => openBoardEdit(b.id));
 
     const goBtn = document.createElement('button');
     goBtn.className = 'btn btn-ghost';
-    goBtn.style.fontSize = 'var(--text-xs)';
-    goBtn.style.padding = 'var(--space-1) var(--space-3)';
+    goBtn.style.cssText = 'font-size:var(--text-xs);padding:var(--space-1) var(--space-3)';
     goBtn.textContent = '→ Go';
     goBtn.addEventListener('click', () => switchBoard(b.id));
 
     const clearBtn = document.createElement('button');
-    clearBtn.className = 'btn btn-danger';
-    clearBtn.style.fontSize = 'var(--text-xs)';
-    clearBtn.style.padding = 'var(--space-1) var(--space-3)';
-    clearBtn.textContent = '🗑 Clear';
+    clearBtn.className = 'btn btn-ghost';
+    clearBtn.style.cssText = 'font-size:var(--text-xs);padding:var(--space-1) var(--space-3)';
+    clearBtn.textContent = '⊘ Clear';
     clearBtn.addEventListener('click', () => clearBoard(b.id));
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn btn-danger';
+    delBtn.style.cssText = 'font-size:var(--text-xs);padding:var(--space-1) var(--space-3)';
+    delBtn.textContent = '✕ Delete';
+    delBtn.addEventListener('click', () => deleteBoard(b.id));
 
     actions.appendChild(editBtn);
     actions.appendChild(goBtn);
     actions.appendChild(clearBtn);
+    actions.appendChild(delBtn);
     row.appendChild(dot);
     row.appendChild(title);
     row.appendChild(actions);
     list.appendChild(row);
   });
+
+  // Add-board form at the bottom
+  if (boards.length < maxBoards) {
+    const addRow = document.createElement('div');
+    addRow.style.cssText = 'display:flex;gap:var(--space-2);align-items:center;margin-top:var(--space-4);flex-wrap:wrap';
+
+    const nameIn = document.createElement('input');
+    nameIn.type = 'text';
+    nameIn.className = 'form-input';
+    nameIn.placeholder = 'New board name…';
+    nameIn.maxLength = 40;
+    nameIn.style.cssText = 'flex:1;min-width:140px;user-select:text';
+
+    const colorIn = document.createElement('input');
+    colorIn.type = 'color';
+    colorIn.value = '#4f98a3';
+    colorIn.style.cssText = 'width:36px;height:34px;padding:2px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface-2);cursor:pointer;flex-shrink:0';
+
+    const addBtn2 = document.createElement('button');
+    addBtn2.className = 'btn btn-primary';
+    addBtn2.style.cssText = 'font-size:var(--text-xs);padding:var(--space-1) var(--space-4)';
+    addBtn2.textContent = '+ Add board';
+    addBtn2.addEventListener('click', () => createBoard(nameIn.value.trim(), colorIn.value));
+    nameIn.addEventListener('keydown', e => { if (e.key === 'Enter') createBoard(nameIn.value.trim(), colorIn.value); });
+
+    addRow.appendChild(nameIn);
+    addRow.appendChild(colorIn);
+    addRow.appendChild(addBtn2);
+    list.appendChild(addRow);
+  }
 }
 
 // ════════════════════════════════════════════════════════
@@ -1004,6 +1046,21 @@ function removeBoxFromDom(boxId) {
   const boardId = parseInt(card.dataset.boardId);
   card.classList.add('removing');
   setTimeout(() => { card.remove(); updateEmpty(boardId); }, 200);
+}
+
+function handleBoardDeleted(boardId) {
+  boards = boards.filter(b => b.id !== boardId);
+  const canvas = document.getElementById('canvas-' + boardId);
+  if (canvas) canvas.remove();
+  knownBoxIds.forEach(id => {
+    const card = document.getElementById('box-' + id);
+    if (card && parseInt(card.dataset.boardId) === boardId) knownBoxIds.delete(id);
+  });
+  if (activeBoardId === boardId) {
+    activeBoardId = boards.length ? boards[0].id : null;
+    if (activeBoardId) switchBoard(activeBoardId);
+  }
+  renderTabs();
 }
 
 function clearBoardDom(boardId) {
@@ -1107,6 +1164,44 @@ function makeDraggable(card, boxId) {
 
   card.addEventListener('mousedown',  onDown);
   card.addEventListener('touchstart', onDown, { passive: false });
+}
+
+// ════════════════════════════════════════════════════════
+//  Create / delete boards
+// ════════════════════════════════════════════════════════
+async function createBoard(title, color) {
+  if (boards.length >= maxBoards) {
+    toast(`Board limit of ${maxBoards} reached`, 'warn', 3000);
+    return;
+  }
+  try {
+    const board = await apiFetch('/boards', {
+      method: 'POST',
+      body: JSON.stringify({ title: title || 'New Board', color: color || '#4f98a3' }),
+    });
+    boards.push(board);
+    getOrCreateCanvas(board.id);
+    renderTabs();
+    toast(`Board "${board.title}" created`, 'success', 2500);
+    switchBoard(board.id);
+  } catch (e) {
+    console.error('[createBoard] FAILED:', e);
+    toast('Error creating board: ' + e.message, 'error', 4000);
+  }
+}
+
+async function deleteBoard(boardId) {
+  const b = boards.find(x => x.id === boardId);
+  if (!b) return;
+  if (!confirm(`Delete board "${b.title}" and all its boxes? This cannot be undone.`)) return;
+  try {
+    await apiFetch(`/boards/${boardId}`, { method: 'DELETE' });
+    handleBoardDeleted(boardId);
+    toast(`Board "${b.title}" deleted`, 'success', 2500);
+  } catch (e) {
+    console.error('[deleteBoard] FAILED:', e);
+    toast('Error deleting board: ' + e.message, 'error', 4000);
+  }
 }
 
 // ════════════════════════════════════════════════════════
@@ -1268,6 +1363,7 @@ async function loadConfig() {
     if (!cfg) return;
     if (cfg.delete_tap_count) deleteTapCount = cfg.delete_tap_count;
     separateAddTab = !!cfg.separate_add_tab;
+    if (cfg.max_boards) maxBoards = cfg.max_boards;
   } catch (_) {}
 }
 
@@ -1376,6 +1472,14 @@ function connectWS() {
           break;
         case 'BoardCleared':
           clearBoardDom(msg.data.board_id);
+          break;
+        case 'BoardCreated':
+          boards.push(msg.data);
+          getOrCreateCanvas(msg.data.id);
+          renderTabs();
+          break;
+        case 'BoardDeleted':
+          handleBoardDeleted(msg.data.board_id);
           break;
       }
     } catch (_) {}
