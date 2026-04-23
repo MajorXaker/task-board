@@ -7,11 +7,8 @@ use std::env;
 /// Top-level application configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
-    /// PostgreSQL connection settings.
     pub database: DatabaseConfig,
-    /// HTTP server settings.
     pub server: ServerConfig,
-    /// Application behaviour settings.
     pub app: AppSettings,
 }
 
@@ -51,6 +48,9 @@ pub struct AppSettings {
     pub default_canvas_height: f64,
     /// How many taps/clicks are required to delete a box.
     pub delete_tap_count: u8,
+    /// When true, the "Add / Manage" controls move to a dedicated tab
+    /// instead of living in the top toolbar.
+    pub separate_add_tab: bool,
 }
 
 impl Default for AppSettings {
@@ -59,6 +59,7 @@ impl Default for AppSettings {
             default_canvas_width: 1280.0,
             default_canvas_height: 800.0,
             delete_tap_count: 3,
+            separate_add_tab: false,
         }
     }
 }
@@ -80,9 +81,16 @@ pub fn load_config() -> Result<AppConfig> {
     };
 
     let app = AppSettings {
-        default_canvas_width: env_or("DEFAULT_CANVAS_WIDTH", "1280").parse::<f64>().context("DEFAULT_CANVAS_WIDTH must be a number")?,
-        default_canvas_height: env_or("DEFAULT_CANVAS_HEIGHT", "800").parse::<f64>().context("DEFAULT_CANVAS_HEIGHT must be a number")?,
-        delete_tap_count: env_or("DELETE_TAP_COUNT", "3").parse::<u8>().context("DELETE_TAP_COUNT must be 1-255")?,
+        default_canvas_width: env_or("DEFAULT_CANVAS_WIDTH", "1280")
+            .parse::<f64>()
+            .context("DEFAULT_CANVAS_WIDTH must be a number")?,
+        default_canvas_height: env_or("DEFAULT_CANVAS_HEIGHT", "800")
+            .parse::<f64>()
+            .context("DEFAULT_CANVAS_HEIGHT must be a number")?,
+        delete_tap_count: env_or("DELETE_TAP_COUNT", "3")
+            .parse::<u8>()
+            .context("DELETE_TAP_COUNT must be 1-255")?,
+        separate_add_tab: env_or("SEPARATE_ADD_TAB", "false").to_lowercase() == "true",
     };
 
     Ok(AppConfig { database: db, server, app })
