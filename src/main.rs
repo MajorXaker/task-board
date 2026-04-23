@@ -1,4 +1,4 @@
-//! phrase-board — Collaborative drag-and-drop task tracker
+//! task-board — Collaborative drag-and-drop task tracker
 //!
 //! Entry point: loads config, connects to Postgres, runs migrations,
 //! sets up the WebSocket broadcast channel, then starts the axum server.
@@ -24,7 +24,7 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
-    info!("phrase-board starting up");
+    info!("task-board starting up");
 
     // 2. Load configuration from environment variables.
     let cfg = config::load_config().unwrap_or_else(|e| {

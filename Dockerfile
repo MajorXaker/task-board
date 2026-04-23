@@ -13,8 +13,8 @@ COPY Cargo.toml Cargo.lock ./
 RUN mkdir src && echo 'fn main() {}' > src/main.rs
 RUN cargo build --release 2>/dev/null || true
 RUN rm -rf src \
-    target/release/phrase-board \
-    target/release/deps/phrase_board*
+    target/release/task-board \
+    target/release/deps/task_board*
 
 # Build real sources.
 COPY src ./src
@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY --from=builder /app/target/release/phrase-board /app/phrase-board
+COPY --from=builder /app/target/release/task-board /app/task-board
 COPY --from=builder /app/migrations /app/migrations
 
 # Frontend static files — copied from the build context at docker build time.
@@ -52,4 +52,4 @@ ENV DEFAULT_CANVAS_HEIGHT=800
 
 EXPOSE 8080
 
-CMD ["/app/phrase-board"]
+CMD ["/app/task-board"]

@@ -1,4 +1,4 @@
-# PhraseBoard
+# TaskBoard
 
 Collaborative drag-and-drop day-task tracker. Run it on a touch tablet for quick task tracking, and add phrases from a desktop with a keyboard — changes appear in real time on all connected devices.
 
@@ -34,7 +34,7 @@ docker compose up --build
 cp .env.example .env
 
 # 2. Create the database
-createdb phraseboard
+createdb taskboard
 
 # 3. Run
 cargo run
@@ -52,7 +52,7 @@ Migrations run automatically on startup.
 | `DB_PORT` | `5432` | Postgres port |
 | `DB_USER` | `postgres` | Postgres user |
 | `DB_PASSWORD` | `postgres` | Postgres password |
-| `DB_NAME` | `phraseboard` | Database name |
+| `DB_NAME` | `taskboard` | Database name |
 | `SERVER_HOST` | `0.0.0.0` | Bind address |
 | `SERVER_PORT` | `8080` | HTTP port |
 | `STATIC_DIR` | `./static` | Path to frontend static files |
@@ -102,7 +102,7 @@ WebSocket messages are JSON with `{ "event": "BoxCreated"|"BoxUpdated"|"BoxDelet
 ## Project structure
 
 ```
-phrase-board/
+task-board/
 ├── src/
 │   ├── main.rs              # Entry point
 │   ├── config.rs            # Env-based configuration
