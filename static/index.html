@@ -456,6 +456,45 @@ body {
 }
 #sync-dot.error { background: #ef4444; }
 #sync-dot.warn  { background: #f59e0b; }
+
+/* ─── Toast notifications ─── */
+#toast-container {
+  position: fixed;
+  bottom: var(--space-5);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  z-index: 9000;
+  pointer-events: none;
+}
+.toast {
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-full);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: var(--shadow-lg);
+  animation: toast-in 0.22s cubic-bezier(0.16,1,0.3,1) both;
+  pointer-events: none;
+}
+.toast.success { background: #16a34a; color: #fff; }
+.toast.error   { background: #dc2626; color: #fff; }
+.toast.info    { background: var(--color-primary); color: #fff; }
+.toast.warn    { background: #d97706; color: #fff; }
+.toast.fade-out {
+  animation: toast-out 0.3s ease forwards;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.9); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toast-out {
+  to { opacity: 0; transform: translateY(8px) scale(0.92); }
+}
 </style>
 </head>
 <body>
@@ -1056,26 +1095,46 @@ function makeDraggable(card, boxId) {
 // ════════════════════════════════════════════════════════
 async function addPhrase(text, targetBoardId) {
   text = (text || '').trim();
-  if (!text) return false;
+  if (!text) {
+    console.warn('[addPhrase] Aborted: empty text');
+    toast('Please enter some text first', 'warn', 2500);
+    return false;
+  }
   targetBoardId = parseInt(targetBoardId);
-  if (!targetBoardId || isNaN(targetBoardId)) return false;
+  if (!targetBoardId || isNaN(targetBoardId)) {
+    console.error('[addPhrase] Aborted: invalid targetBoardId =', targetBoardId);
+    toast('No board selected — please try again', 'error');
+    return false;
+  }
 
   const pal = getPalette(selectedPaletteIdx);
+  const payload = {
+    board_id:   targetBoardId,
+    text,
+    color_bg:   pal.bg,
+    color_text: pal.text,
+  };
+  console.log('[addPhrase] Sending POST /api/boards/' + targetBoardId + '/boxes', payload);
+
+  const pending = toast('Adding "' + text + '"…', 'info', 10000);
+
   try {
     const box = await apiFetch(`/boards/${targetBoardId}/boxes`, {
       method: 'POST',
-      body: JSON.stringify({
-        board_id:   targetBoardId,
-        text,
-        color_bg:   pal.bg,
-        color_text: pal.text,
-      }),
+      body: JSON.stringify(payload),
     });
+    pending.classList.add('fade-out');
+    setTimeout(() => pending.remove(), 350);
+    console.log('[addPhrase] Success — box created:', box);
+    toast('✓ Added "' + box.text + '"', 'success', 2500);
     renderBox(box);
     knownBoxIds.add(box.id);
     return true;
   } catch (e) {
-    console.error('Failed to add phrase:', e);
+    pending.classList.add('fade-out');
+    setTimeout(() => pending.remove(), 350);
+    console.error('[addPhrase] FAILED:', e.message, e);
+    toast('Error: ' + e.message, 'error', 5000);
     return false;
   }
 }
@@ -1294,6 +1353,22 @@ function connectWS() {
   ws.addEventListener('error', () => ws.close());
 }
 
+
+// ════════════════════════════════════════════════════════
+//  Toast notifications
+// ════════════════════════════════════════════════════════
+function toast(msg, type = 'info', durationMs = 3000) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  const container = document.getElementById('toast-container');
+  container.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('fade-out');
+    setTimeout(() => el.remove(), 350);
+  }, durationMs);
+  return el;
+}
 // ════════════════════════════════════════════════════════
 //  Bootstrap
 // ════════════════════════════════════════════════════════
@@ -1308,5 +1383,7 @@ function connectWS() {
   setInterval(poll, POLL_MS);
 })();
 </script>
+
+<div id="toast-container"></div>
 </body>
 </html>

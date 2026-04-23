@@ -6,7 +6,7 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use tracing::warn;
+use tracing::{debug, info, warn};
 use uuid::Uuid;
 
 use crate::api::{AppState, StateChange};
@@ -59,6 +59,16 @@ pub async fn create_box(
     Path(board_id): Path<i32>,
     Json(mut body): Json<CreateBoxRequest>,
 ) -> impl IntoResponse {
+    info!(
+        board_id,
+        text = %body.text,
+        color_bg = %body.color_bg,
+        color_text = %body.color_text,
+        pos_x = ?body.pos_x,
+        pos_y = ?body.pos_y,
+        "create_box: request received"
+    );
+
     body.board_id = board_id;
 
     // Scatter new boxes within the configured default canvas area
@@ -69,13 +79,36 @@ pub async fn create_box(
         body.pos_y = Some(40.0 + rand_offset(state.app_settings.default_canvas_height - 120.0));
     }
 
+    debug!(
+        board_id,
+        pos_x = body.pos_x.unwrap(),
+        pos_y = body.pos_y.unwrap(),
+        "create_box: resolved position"
+    );
+
     match db::create_box(&state.db_pool, &body, body.pos_x.unwrap(), body.pos_y.unwrap()).await {
         Ok(b) => {
-            let _ = state.tx.send(StateChange::BoxCreated(b.clone()));
+            info!(
+                board_id,
+                box_id = %b.id,
+                text = %b.text,
+                "create_box: box inserted successfully"
+            );
+            let broadcast_result = state.tx.send(StateChange::BoxCreated(b.clone()));
+            debug!(
+                box_id = %b.id,
+                listeners = broadcast_result.as_ref().map(|n| *n).unwrap_or(0),
+                "create_box: broadcast sent"
+            );
             (StatusCode::CREATED, Json(b)).into_response()
         }
         Err(e) => {
-            warn!(error = %e, board_id, "Failed to create box");
+            warn!(
+                error = %e,
+                board_id,
+                text = %body.text,
+                "create_box: DB insert FAILED"
+            );
             (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
         }
     }
@@ -122,7 +155,6 @@ pub async fn delete_box(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> impl IntoResponse {
-    // We need the board_id before deleting so we can broadcast it
     let board_id = match sqlx::query_scalar::<_, i32>("SELECT board_id FROM boxes WHERE id = $1")
         .bind(id)
         .fetch_optional(&state.db_pool)
