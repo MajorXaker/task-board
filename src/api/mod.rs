@@ -3,7 +3,6 @@
 pub mod board_routes;
 pub mod box_routes;
 pub mod config_routes;
-pub mod ws;
 
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -17,6 +16,7 @@ use axum::{
 };
 use sqlx::PgPool;
 use tower_http::services::ServeDir;
+use tracing::debug;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -49,7 +49,7 @@ pub enum StateChange {
 /// `GET /api/health`
 #[utoipa::path(
     get,
-    path = "/api/health",
+    path = "/api/__heartbeat__",
     responses((status = 200, description = "Service is alive"))
 )]
 async fn health() -> impl IntoResponse {
@@ -102,7 +102,7 @@ pub fn create_router(state: AppState, enable_docs: bool, static_dir: &str) -> Ro
     // silently replaces the first registration.  All HTTP methods for a
     // given path MUST be combined in a single .route() call.
     let mut api = Router::new()
-        .route("/health", get(health))
+        .route("/__heartbeat__", get(health))
         .route("/config", get(config_routes::get_config))
         // boards collection
         .route(
@@ -133,15 +133,14 @@ pub fn create_router(state: AppState, enable_docs: bool, static_dir: &str) -> Ro
             "/boxes/{id}",
             patch(box_routes::update_box).delete(box_routes::delete_box),
         )
-        // websocket
-        .route("/ws", get(ws::ws_handler))
         .with_state(state.clone());
 
-    if enable_docs {
-        api = api.merge(
-            SwaggerUi::new("/api/docs").url("/api/docs/openapi.json", ApiDoc::openapi()),
-        );
-    }
+    let api = if enable_docs {
+        debug!("Enabling docs endpoint");
+        api.merge(SwaggerUi::new("/docs").url("/docs/openapi.json", ApiDoc::openapi()))
+    } else {
+        api
+    };
 
     // ── Static file serving + SPA fallback ─────────────────────────────────
     //
@@ -150,25 +149,26 @@ pub fn create_router(state: AppState, enable_docs: bool, static_dir: &str) -> Ro
     // that do NOT start with /api — enforced by the middleware below.
     // Paths that don't match any static file are rewritten to /index.html
     // so client-side routing works.
-    let static_dir = static_dir.to_string();
-    let spa_fallback = axum::routing::get(move || {
-        let path = format!("{}/index.html", static_dir);
-        async move {
-            match tokio::fs::read(path).await {
-                Ok(bytes) => axum::response::Response::builder()
-                    .header("Content-Type", "text/html; charset=utf-8")
-                    .body(axum::body::Body::from(bytes))
-                    .unwrap(),
-                Err(_) => axum::response::Response::builder()
-                    .status(404)
-                    .body(axum::body::Body::from("index.html not found"))
-                    .unwrap(),
-            }
-        }
-    });
+
+    // let static_dir = static_dir.to_string();
+    // let spa_fallback = axum::routing::get(move || {
+    //     let path = format!("{}/index.html", static_dir);
+    //     async move {
+    //         match tokio::fs::read(path).await {
+    //             Ok(bytes) => axum::response::Response::builder()
+    //                 .header("Content-Type", "text/html; charset=utf-8")
+    //                 .body(axum::body::Body::from(bytes))
+    //                 .unwrap(),
+    //             Err(_) => axum::response::Response::builder()
+    //                 .status(404)
+    //                 .body(axum::body::Body::from("index.html not found"))
+    //                 .unwrap(),
+    //         }
+    //     }
+    // });
 
     Router::new()
         .nest("/api", api)
-        .nest_service("/static", ServeDir::new("static"))
-        .fallback(spa_fallback)
+        // .nest_service("/static", ServeDir::new("static"))
+        // .fallback(spa_fallback)
 }
