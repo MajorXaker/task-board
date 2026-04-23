@@ -27,6 +27,7 @@ async fn main() -> anyhow::Result<()> {
     info!("task-board starting up");
 
     // 2. Load configuration from environment variables.
+    dotenvy::dotenv().ok(); // silently ignores missing .env
     let cfg = config::load_config().unwrap_or_else(|e| {
         error!(error = %e, "Configuration error — aborting");
         std::process::exit(1);
