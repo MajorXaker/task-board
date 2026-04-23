@@ -34,6 +34,7 @@ services:
       SERVER_PORT: 8080
       ENABLE_DOCS: "true"        # set to "false" to hide Swagger UI
       DELETE_TAP_COUNT: "3"      # taps/clicks required to delete a box
+      SEPARATE_ADD_TAB: "false"       # set to "true" for dedicated manage tab
       DEFAULT_CANVAS_WIDTH: "1280"
       DEFAULT_CANVAS_HEIGHT: "800"
       RUST_LOG: "info"

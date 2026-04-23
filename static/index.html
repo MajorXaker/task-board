@@ -20,7 +20,6 @@
   --color-text-faint: #bab9b4;
   --color-primary: #01696f;
   --color-primary-hover: #0c4e54;
-  --color-primary-highlight: #cedcd8;
   --color-divider: #dcd9d5;
   --shadow-sm: 0 1px 2px rgba(40,37,29,.06);
   --shadow-md: 0 4px 12px rgba(40,37,29,.10);
@@ -44,14 +43,13 @@
   --color-bg: #171614;
   --color-surface: #1c1b19;
   --color-surface-2: #201f1d;
-  --color-surface-offset: #1d1c1a;
+  --color-surface-offset: #252320;
   --color-border: #393836;
   --color-text: #cdccca;
   --color-text-muted: #797876;
   --color-text-faint: #5a5957;
   --color-primary: #4f98a3;
   --color-primary-hover: #227f8b;
-  --color-primary-highlight: #313b3b;
   --color-divider: #262523;
   --shadow-sm: 0 1px 2px rgba(0,0,0,.25);
   --shadow-md: 0 4px 12px rgba(0,0,0,.35);
@@ -75,7 +73,7 @@ body {
 /* ─── Toolbar ─── */
 #toolbar {
   flex-shrink: 0;
-  height: 56px;
+  height: 52px;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
   display: flex;
@@ -100,6 +98,11 @@ body {
   color: var(--color-text);
   letter-spacing: -0.01em;
   white-space: nowrap;
+}
+
+/* ── Inline add controls (toolbar mode) ── */
+#toolbar-add-controls {
+  display: contents; /* renders children inline in the toolbar flex */
 }
 
 #phrase-input {
@@ -137,11 +140,15 @@ body {
   border: 1px solid var(--color-border);
 }
 .btn-ghost:hover { background: var(--color-surface-offset); color: var(--color-text); }
+.btn-danger {
+  background: #c0392b; color: #fff;
+}
+.btn-danger:hover { background: #a93226; }
 
-/* color picker row */
-#color-swatches { display: flex; gap: var(--space-1); align-items: center; flex-shrink: 0; }
+/* color swatch strip */
+.color-swatches { display: flex; gap: var(--space-1); align-items: center; flex-shrink: 0; }
 .swatch {
-  width: 22px; height: 22px; border-radius: var(--radius-full);
+  width: 24px; height: 24px; border-radius: var(--radius-full);
   cursor: pointer; border: 2px solid transparent;
   transition: transform var(--transition), border-color var(--transition);
   flex-shrink: 0;
@@ -149,7 +156,7 @@ body {
 .swatch:hover { transform: scale(1.2); }
 .swatch.active { border-color: var(--color-text); }
 
-/* board selector in toolbar */
+/* board target selector in toolbar */
 #board-selector-label { font-size: var(--text-xs); color: var(--color-text-muted); flex-shrink: 0; }
 #box-board-select {
   padding: var(--space-1) var(--space-3);
@@ -164,25 +171,17 @@ body {
   flex-shrink: 0;
 }
 
-/* theme toggle */
-#theme-toggle {
-  margin-left: auto; background: none; border: none; cursor: pointer;
-  color: var(--color-text-muted); display: flex; align-items: center;
-  padding: var(--space-1); border-radius: var(--radius-sm);
-  transition: color var(--transition); flex-shrink: 0;
-}
-#theme-toggle:hover { color: var(--color-text); }
-
-/* help toggle */
-#help-toggle {
+/* right-side icon buttons */
+.icon-btn {
   background: none; border: none; cursor: pointer;
   color: var(--color-text-muted); display: flex; align-items: center;
   padding: var(--space-1); border-radius: var(--radius-sm);
   transition: color var(--transition); flex-shrink: 0;
 }
-#help-toggle:hover { color: var(--color-text); }
+.icon-btn:hover { color: var(--color-text); }
+#theme-toggle { margin-left: auto; }
 
-/* ─── Board tabs row ─── */
+/* ─── Board + Manage tabs row ─── */
 #board-tabs-row {
   flex-shrink: 0;
   display: flex; align-items: stretch;
@@ -191,6 +190,7 @@ body {
   overflow-x: auto; scrollbar-width: none;
 }
 #board-tabs-row::-webkit-scrollbar { display: none; }
+
 .board-tab {
   display: flex; align-items: center; gap: var(--space-2);
   padding: 0 var(--space-5);
@@ -202,10 +202,20 @@ body {
   transition: color var(--transition), border-color var(--transition), background var(--transition);
   white-space: nowrap;
   min-height: 40px;
-  position: relative;
 }
 .board-tab:hover { background: var(--color-surface-offset); color: var(--color-text); }
 .board-tab.active { color: var(--color-text); border-bottom-color: var(--color-primary); }
+
+/* manage tab — right-aligned */
+#manage-tab {
+  margin-left: auto;
+  border-left: 1px solid var(--color-border);
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+#manage-tab svg { flex-shrink: 0; }
+
 .tab-dot {
   width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
 }
@@ -221,7 +231,7 @@ body {
 .board-tab:hover .tab-edit-btn,
 .board-tab.active .tab-edit-btn { opacity: 1; }
 
-/* ─── Board area ─── */
+/* ─── Board / Manage canvas area ─── */
 #board-area {
   flex: 1; position: relative; overflow: auto;
 }
@@ -231,6 +241,81 @@ body {
   display: none;
 }
 .board-canvas.active { display: block; }
+
+/* ─── Manage panel ─── */
+#manage-panel {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: none;
+  overflow-y: auto;
+  padding: var(--space-6);
+  background: var(--color-bg);
+}
+#manage-panel.active { display: block; }
+
+.manage-section {
+  max-width: 640px;
+  margin: 0 auto var(--space-8);
+}
+.manage-section h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ── Add box form ── */
+#manage-add-form {
+  display: flex; flex-direction: column; gap: var(--space-4);
+}
+.form-row {
+  display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap;
+}
+.form-label {
+  font-size: var(--text-sm); color: var(--color-text-muted);
+  min-width: 80px; flex-shrink: 0;
+}
+.form-input {
+  flex: 1; min-width: 180px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-family: var(--font-body); font-size: var(--text-sm);
+  outline: none;
+  user-select: text;
+  transition: border-color var(--transition);
+}
+.form-input:focus { border-color: var(--color-primary); }
+.form-select {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-family: var(--font-body); font-size: var(--text-sm);
+  cursor: pointer; outline: none;
+}
+
+/* ── Board management table ── */
+.board-list {
+  display: flex; flex-direction: column; gap: var(--space-3);
+}
+.board-row {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+.board-row-dot {
+  width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+}
+.board-row-title {
+  flex: 1; font-size: var(--text-sm); font-weight: 500;
+}
+.board-row-actions { display: flex; gap: var(--space-2); }
 
 /* ─── Empty state ─── */
 .empty-state {
@@ -245,7 +330,7 @@ body {
   color: var(--color-text-faint); font-size: var(--text-sm);
   text-align: center; max-width: 28ch;
 }
-.empty-state.hidden { opacity: 0; }
+.empty-state.hidden { opacity: 0; pointer-events: none; }
 
 /* ─── Phrase Card ─── */
 .phrase-card {
@@ -258,13 +343,13 @@ body {
   font-family: var(--font-body); font-size: var(--text-sm);
   line-height: 1.5; word-break: break-word;
   display: flex; align-items: flex-start; gap: var(--space-2);
-  border: 1px solid rgba(0,0,0,.08);
+  border: 1px solid rgba(0,0,0,.06);
   animation: card-in 0.28s cubic-bezier(0.16,1,0.3,1) both;
   transition: box-shadow var(--transition), transform var(--transition);
 }
 @keyframes card-in {
   from { opacity: 0; transform: scale(0.7) translateY(10px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
+  to   { opacity: 1; transform: scale(1)   translateY(0); }
 }
 .phrase-card:hover { box-shadow: var(--shadow-lg); }
 .phrase-card.dragging {
@@ -280,12 +365,9 @@ body {
   opacity: 0 !important;
   transform: scale(0.85) !important;
 }
-/* tap-flash feedback */
 .phrase-card.tap-flash { outline: 2px solid rgba(255,80,80,.7); }
 
-.phrase-text {
-  flex: 1; pointer-events: none; font-size: inherit;
-}
+.phrase-text { flex: 1; pointer-events: none; }
 
 .delete-btn {
   width: 18px; height: 18px; flex-shrink: 0;
@@ -301,7 +383,7 @@ body {
 
 /* ─── Help panel ─── */
 #help-panel {
-  position: fixed; top: 106px; right: var(--space-5);
+  position: fixed; top: 100px; right: var(--space-5);
   width: min(340px, calc(100vw - 2 * var(--space-5)));
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -314,13 +396,10 @@ body {
 }
 @keyframes panel-in {
   from { opacity: 0; transform: translateY(-8px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
 #help-panel.visible { display: block; }
-#help-panel h3 {
-  font-family: var(--font-display); font-size: var(--text-lg);
-  margin-bottom: var(--space-4);
-}
+#help-panel h3 { font-family: var(--font-display); font-size: var(--text-lg); margin-bottom: var(--space-4); }
 #help-panel ul { list-style: none; display: flex; flex-direction: column; gap: var(--space-3); }
 #help-panel li { font-size: var(--text-sm); color: var(--color-text-muted); line-height: 1.5; }
 #help-panel li strong { color: var(--color-text); }
@@ -357,6 +436,7 @@ body {
   color: var(--color-text);
   font-family: var(--font-body); font-size: var(--text-sm);
   outline: none; user-select: text;
+  transition: border-color var(--transition);
 }
 #board-edit-box input[type="text"]:focus { border-color: var(--color-primary); }
 #board-edit-box input[type="color"] {
@@ -392,27 +472,27 @@ body {
     <span>TaskBoard</span>
   </div>
 
-  <input type="text" id="phrase-input" placeholder="Type a phrase and press Enter…" maxlength="200" autocomplete="off"/>
+  <!-- Shown only when SEPARATE_ADD_TAB=false -->
+  <div id="toolbar-add-controls">
+    <input type="text" id="phrase-input" placeholder="Type a phrase and press Enter…" maxlength="200" autocomplete="off"/>
+    <button class="btn btn-primary" id="add-btn">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+        <path d="M8 2v12M2 8h12"/>
+      </svg>
+      Add
+    </button>
+    <div class="color-swatches" id="toolbar-swatches" aria-label="Card color"></div>
+    <span id="board-selector-label">to:</span>
+    <select id="box-board-select"></select>
+  </div>
 
-  <button class="btn btn-primary" id="add-btn">
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-      <path d="M8 2v12M2 8h12"/>
-    </svg>
-    Add
-  </button>
-
-  <div id="color-swatches" aria-label="Card color"></div>
-
-  <span id="board-selector-label">to:</span>
-  <select id="box-board-select"></select>
-
-  <button id="help-toggle" title="Help" aria-label="Show instructions">
+  <button id="help-toggle" class="icon-btn" title="Help" aria-label="Show instructions">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
     </svg>
   </button>
 
-  <button id="theme-toggle" aria-label="Toggle theme">
+  <button id="theme-toggle" class="icon-btn" aria-label="Toggle theme">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
     </svg>
@@ -421,22 +501,69 @@ body {
   <div id="sync-dot" title="Connection status"></div>
 </header>
 
-<!-- Board tabs -->
-<nav id="board-tabs-row"></nav>
+<!-- Board + Manage tabs row -->
+<nav id="board-tabs-row">
+  <!-- board tabs injected here by JS -->
+  <!-- manage tab always at the end, only visible when separate_add_tab=true -->
+  <button class="board-tab" id="manage-tab" style="display:none">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+    </svg>
+    Manage
+  </button>
+</nav>
 
-<!-- Board area -->
-<main id="board-area"></main>
+<!-- Board canvases + Manage panel live inside here -->
+<main id="board-area">
+  <!-- Manage panel -->
+  <div id="manage-panel">
+    <!-- Add a box -->
+    <div class="manage-section">
+      <h2>Add a box</h2>
+      <div id="manage-add-form">
+        <div class="form-row">
+          <span class="form-label">Text</span>
+          <input type="text" id="manage-phrase-input" class="form-input" placeholder="Type a phrase…" maxlength="200" autocomplete="off"/>
+        </div>
+        <div class="form-row">
+          <span class="form-label">Color</span>
+          <div class="color-swatches" id="manage-swatches" aria-label="Card color"></div>
+        </div>
+        <div class="form-row">
+          <span class="form-label">Board</span>
+          <select id="manage-board-select" class="form-select"></select>
+        </div>
+        <div class="form-row">
+          <button class="btn btn-primary" id="manage-add-btn">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+              <path d="M8 2v12M2 8h12"/>
+            </svg>
+            Add box
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Boards -->
+    <div class="manage-section">
+      <h2>Boards</h2>
+      <div class="board-list" id="manage-board-list">
+        <!-- populated by JS -->
+      </div>
+    </div>
+  </div>
+</main>
 
 <!-- Help panel -->
 <aside id="help-panel">
   <button class="close-help" id="close-help">✕</button>
   <h3>How to use TaskBoard</h3>
   <ul>
-    <li><strong>Add a box:</strong> Type text in the input bar and press <strong>Enter</strong> or tap <strong>Add</strong>. Choose a color swatch and target board first.</li>
+    <li id="help-add-hint"><strong>Add a box:</strong> <span id="help-add-text"></span></li>
     <li><strong>Move a box:</strong> Drag it anywhere on the canvas. Position is saved automatically.</li>
     <li id="help-delete-hint"><strong>Delete a box:</strong> <span id="help-tap-count"></span> — or use the ✕ button that appears on hover.</li>
     <li><strong>Switch boards:</strong> Tap a board tab at the top.</li>
-    <li><strong>Rename a board:</strong> Click the pencil icon next to a board tab title.</li>
+    <li><strong>Rename a board:</strong> Click the ✎ icon next to a tab, or use the Manage tab.</li>
     <li><strong>Scroll:</strong> If boxes are placed beyond the visible area, scroll bars appear automatically.</li>
     <li><strong>Collaborate:</strong> Changes from other devices appear in real time via WebSocket, with 1-second polling as fallback.</li>
   </ul>
@@ -468,44 +595,50 @@ body {
 const API = '/api';
 const POLL_MS = 1000;
 
-const PALETTES = [
-  { bg: '#fffbea', text: '#5c4a00', label: 'Yellow'  },
-  { bg: '#e6f4ea', text: '#1a4022', label: 'Green'   },
-  { bg: '#e8f4fd', text: '#0a3356', label: 'Blue'    },
-  { bg: '#fde8f4', text: '#560a3a', label: 'Pink'    },
-  { bg: '#fdeee8', text: '#56200a', label: 'Orange'  },
-  { bg: '#f0e8fd', text: '#2e0a56', label: 'Purple'  },
-  { bg: '#e8f3f4', text: '#0a3540', label: 'Teal'    },
-  { bg: '#f4f4f4', text: '#1a1a1a', label: 'Neutral' },
-];
-const PALETTES_DARK = [
-  { bg: '#2e2800', text: '#f0d96b', label: 'Yellow'  },
-  { bg: '#0d2210', text: '#7de892', label: 'Green'   },
-  { bg: '#091e30', text: '#7ec6f5', label: 'Blue'    },
-  { bg: '#300a22', text: '#f5a0d9', label: 'Pink'    },
-  { bg: '#2e1008', text: '#f5b07a', label: 'Orange'  },
-  { bg: '#1c0a2e', text: '#c49af5', label: 'Purple'  },
-  { bg: '#081e20', text: '#7ad8df', label: 'Teal'    },
-  { bg: '#1e1e1e', text: '#c8c8c8', label: 'Neutral' },
-];
+// Mid-tone palettes — readable in both light and dark contexts.
+// Each swatch shows its bg; text is for the card's text color.
+const PALETTES = {
+  light: [
+    { bg: '#fef3c7', text: '#713f12', label: 'Yellow'  },
+    { bg: '#dcfce7', text: '#14532d', label: 'Green'   },
+    { bg: '#dbeafe', text: '#1e3a8a', label: 'Blue'    },
+    { bg: '#fce7f3', text: '#831843', label: 'Pink'    },
+    { bg: '#ffedd5', text: '#7c2d12', label: 'Orange'  },
+    { bg: '#ede9fe', text: '#4c1d95', label: 'Purple'  },
+    { bg: '#ccfbf1', text: '#134e4a', label: 'Teal'    },
+    { bg: '#f1f5f9', text: '#1e293b', label: 'Slate'   },
+  ],
+  dark: [
+    { bg: '#422006', text: '#fde68a', label: 'Yellow'  },
+    { bg: '#052e16', text: '#86efac', label: 'Green'   },
+    { bg: '#0f1e40', text: '#93c5fd', label: 'Blue'    },
+    { bg: '#3d0a22', text: '#f9a8d4', label: 'Pink'    },
+    { bg: '#3d1604', text: '#fdba74', label: 'Orange'  },
+    { bg: '#200d40', text: '#c4b5fd', label: 'Purple'  },
+    { bg: '#042420', text: '#5eead4', label: 'Teal'    },
+    { bg: '#1e2530', text: '#cbd5e1', label: 'Slate'   },
+  ],
+};
 
 // ════════════════════════════════════════════════════════
 //  State
 // ════════════════════════════════════════════════════════
-let boards      = [];          // [{id, slot, title, color}, ...]
-let activeBoardId = null;      // currently visible board id
-let selectedPaletteIdx = 0;
-let zCounter    = 10;
-let deleteTapCount = 3;        // overridden from backend config
+let boards         = [];
+let activeBoardId  = null;   // null means Manage panel is active
+let selectedPaletteIdx = 2;  // Blue default — more visible on dark bg
+let zCounter       = 10;
+let deleteTapCount = 3;
+let separateAddTab = false;  // overridden from /api/config
 
-// Per-box tap tracking: { [boxId]: { count, timer } }
-const tapState = {};
+const tapState = {};        // per-box tap tracking
+let knownBoxIds = new Set();
 
 // ════════════════════════════════════════════════════════
 //  Theme
 // ════════════════════════════════════════════════════════
 function isDark() { return document.documentElement.getAttribute('data-theme') === 'dark'; }
-function getPalette(idx) { return isDark() ? PALETTES_DARK[idx] : PALETTES[idx]; }
+function currentPalettes() { return PALETTES[isDark() ? 'dark' : 'light']; }
+function getPalette(idx) { return currentPalettes()[idx]; }
 
 function applyThemeToCards() {
   document.querySelectorAll('.phrase-card').forEach(card => {
@@ -520,9 +653,8 @@ function applyThemeToCards() {
 
 const themeBtn = document.getElementById('theme-toggle');
 themeBtn.addEventListener('click', () => {
-  const next = isDark() ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', next);
-  updateSwatches();
+  document.documentElement.setAttribute('data-theme', isDark() ? 'light' : 'dark');
+  renderAllSwatches();
   applyThemeToCards();
   renderThemeIcon();
 });
@@ -533,63 +665,88 @@ function renderThemeIcon() {
 }
 
 // ════════════════════════════════════════════════════════
-//  Color swatches
+//  Swatches (rendered into both toolbar and manage panel)
 // ════════════════════════════════════════════════════════
-const swatchesEl = document.getElementById('color-swatches');
-PALETTES.forEach((p, i) => {
-  const s = document.createElement('button');
-  s.className = 'swatch' + (i === 0 ? ' active' : '');
-  s.title = p.label;
-  s.style.background = p.bg;
-  s.addEventListener('click', () => {
-    selectedPaletteIdx = i;
-    document.querySelectorAll('.swatch').forEach((el, j) =>
-      el.classList.toggle('active', j === i));
+function buildSwatches(container, onSelect) {
+  container.innerHTML = '';
+  currentPalettes().forEach((p, i) => {
+    const s = document.createElement('button');
+    s.className = 'swatch' + (i === selectedPaletteIdx ? ' active' : '');
+    s.title = p.label;
+    s.style.background = p.bg;
+    s.style.border = `2px solid ${i === selectedPaletteIdx ? 'var(--color-text)' : 'transparent'}`;
+    s.addEventListener('click', () => {
+      selectedPaletteIdx = i;
+      renderAllSwatches();
+      onSelect && onSelect(i);
+    });
+    container.appendChild(s);
   });
-  swatchesEl.appendChild(s);
-});
-function updateSwatches() {
-  document.querySelectorAll('.swatch').forEach((s, i) => {
-    s.style.background = isDark() ? PALETTES_DARK[i].bg : PALETTES[i].bg;
-  });
+}
+
+function renderAllSwatches() {
+  const toolbarEl = document.getElementById('toolbar-swatches');
+  const manageEl  = document.getElementById('manage-swatches');
+  if (toolbarEl) buildSwatches(toolbarEl);
+  if (manageEl)  buildSwatches(manageEl);
 }
 
 // ════════════════════════════════════════════════════════
 //  Help panel
 // ════════════════════════════════════════════════════════
 const helpPanel  = document.getElementById('help-panel');
-const helpToggle = document.getElementById('help-toggle');
-const closeHelp  = document.getElementById('close-help');
-helpToggle.addEventListener('click', () => helpPanel.classList.toggle('visible'));
-closeHelp.addEventListener('click', () => helpPanel.classList.remove('visible'));
+document.getElementById('help-toggle').addEventListener('click', () => helpPanel.classList.toggle('visible'));
+document.getElementById('close-help').addEventListener('click', () => helpPanel.classList.remove('visible'));
 
-function updateHelpTapCount() {
-  const n = deleteTapCount;
-  const word = n === 3 ? 'Triple-tap/click' : `${n}× tap/click`;
-  document.getElementById('help-tap-count').textContent = `${word} a card to delete it`;
+function updateHelpText() {
+  document.getElementById('help-tap-count').textContent =
+    deleteTapCount === 3 ? 'Triple-tap/click a card to delete it' : `${deleteTapCount}× tap/click a card to delete it`;
+  document.getElementById('help-add-text').textContent = separateAddTab
+    ? 'Switch to the Manage tab (top right), fill in text, pick a color, choose a board, then tap Add box.'
+    : 'Type text in the toolbar input and press Enter or tap Add.';
 }
 
 // ════════════════════════════════════════════════════════
 //  Sync dot
 // ════════════════════════════════════════════════════════
 const syncDot = document.getElementById('sync-dot');
-function setSyncStatus(s) { // 'ok' | 'warn' | 'error'
+function setSyncStatus(s) {
   syncDot.className = s === 'ok' ? '' : s;
   syncDot.title = s === 'ok' ? 'Connected' : s === 'warn' ? 'Reconnecting…' : 'Disconnected';
 }
 
 // ════════════════════════════════════════════════════════
-//  Board tabs
+//  Board tabs & selectors
 // ════════════════════════════════════════════════════════
-const tabsRow   = document.getElementById('board-tabs-row');
-const boardArea = document.getElementById('board-area');
-const boardSelect = document.getElementById('box-board-select');
+const tabsRow = document.getElementById('board-tabs-row');
+const manageTab = document.getElementById('manage-tab');
+
+function populateBoardSelects() {
+  ['box-board-select', 'manage-board-select'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const prev = sel.value;
+    sel.innerHTML = '';
+    boards.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b.id;
+      opt.textContent = b.title;
+      sel.appendChild(opt);
+    });
+    // Restore previous selection or default to active board
+    if (prev && boards.find(b => String(b.id) === prev)) {
+      sel.value = prev;
+    } else if (activeBoardId) {
+      sel.value = String(activeBoardId);
+    }
+  });
+}
 
 function renderTabs() {
-  tabsRow.innerHTML = '';
-  boardSelect.innerHTML = '';
+  // Remove all board tabs (keep manage tab)
+  tabsRow.querySelectorAll('.board-tab:not(#manage-tab)').forEach(t => t.remove());
+
   boards.forEach(b => {
-    // Tab button
     const tab = document.createElement('button');
     tab.className = 'board-tab' + (b.id === activeBoardId ? ' active' : '');
     tab.dataset.boardId = b.id;
@@ -611,29 +768,43 @@ function renderTabs() {
     tab.appendChild(label);
     tab.appendChild(editBtn);
     tab.addEventListener('click', () => switchBoard(b.id));
-    tabsRow.appendChild(tab);
 
-    // Dropdown option
-    const opt = document.createElement('option');
-    opt.value = b.id;
-    opt.textContent = b.title;
-    boardSelect.appendChild(opt);
+    // Insert before manage tab
+    tabsRow.insertBefore(tab, manageTab);
   });
+
+  // Manage tab active state
+  manageTab.classList.toggle('active', activeBoardId === null);
+
+  populateBoardSelects();
+  renderManageBoardList();
 }
 
 function switchBoard(id) {
-  activeBoardId = id;
+  activeBoardId = id;  // id is a number, not null
   document.querySelectorAll('.board-canvas').forEach(c => c.classList.remove('active'));
+  document.getElementById('manage-panel').classList.remove('active');
+
   const canvas = document.getElementById('canvas-' + id);
   if (canvas) canvas.classList.add('active');
+
   document.querySelectorAll('.board-tab').forEach(t =>
     t.classList.toggle('active', parseInt(t.dataset.boardId) === id));
-  // Update board dot color on tab
-  const b = boards.find(x => x.id === id);
-  if (b) document.getElementById('board-tabs-row')
-    .querySelectorAll('.board-tab.active .tab-dot')
-    .forEach(d => d.style.background = b.color);
+  manageTab.classList.remove('active');
 }
+
+function switchToManage() {
+  activeBoardId = null;
+  document.querySelectorAll('.board-canvas').forEach(c => c.classList.remove('active'));
+  document.getElementById('manage-panel').classList.add('active');
+  document.querySelectorAll('.board-tab').forEach(t => t.classList.remove('active'));
+  manageTab.classList.add('active');
+  // Focus manage input for keyboard convenience
+  const mi = document.getElementById('manage-phrase-input');
+  if (mi) mi.focus();
+}
+
+manageTab.addEventListener('click', switchToManage);
 
 function getOrCreateCanvas(boardId) {
   let canvas = document.getElementById('canvas-' + boardId);
@@ -652,9 +823,11 @@ function getOrCreateCanvas(boardId) {
         <rect x="8" y="26" width="14" height="14" rx="3" opacity="0.5"/>
         <rect x="26" y="26" width="14" height="14" rx="3" opacity="0.25"/>
       </svg>
-      <p>Add a phrase above to place it on this board</p>`;
+      <p>This board is empty. Add a box to get started.</p>`;
     canvas.appendChild(empty);
-    boardArea.appendChild(canvas);
+    // Insert before manage-panel
+    const mp = document.getElementById('manage-panel');
+    document.getElementById('board-area').insertBefore(canvas, mp);
   }
   return canvas;
 }
@@ -668,26 +841,74 @@ function updateEmpty(boardId) {
 }
 
 // ════════════════════════════════════════════════════════
+//  Manage panel — board list
+// ════════════════════════════════════════════════════════
+function renderManageBoardList() {
+  const list = document.getElementById('manage-board-list');
+  if (!list) return;
+  list.innerHTML = '';
+  boards.forEach(b => {
+    const row = document.createElement('div');
+    row.className = 'board-row';
+
+    const dot = document.createElement('span');
+    dot.className = 'board-row-dot';
+    dot.style.background = b.color;
+
+    const title = document.createElement('span');
+    title.className = 'board-row-title';
+    title.textContent = `${b.slot}. ${b.title}`;
+
+    const actions = document.createElement('div');
+    actions.className = 'board-row-actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn btn-ghost';
+    editBtn.style.fontSize = 'var(--text-xs)';
+    editBtn.style.padding = 'var(--space-1) var(--space-3)';
+    editBtn.textContent = '✎ Edit';
+    editBtn.addEventListener('click', () => openBoardEdit(b.id));
+
+    const goBtn = document.createElement('button');
+    goBtn.className = 'btn btn-ghost';
+    goBtn.style.fontSize = 'var(--text-xs)';
+    goBtn.style.padding = 'var(--space-1) var(--space-3)';
+    goBtn.textContent = '→ Go';
+    goBtn.addEventListener('click', () => switchBoard(b.id));
+
+    actions.appendChild(editBtn);
+    actions.appendChild(goBtn);
+    row.appendChild(dot);
+    row.appendChild(title);
+    row.appendChild(actions);
+    list.appendChild(row);
+  });
+}
+
+// ════════════════════════════════════════════════════════
 //  Phrase cards
 // ════════════════════════════════════════════════════════
 function paletteIdxFromColors(bg, text) {
-  const palettes = isDark() ? PALETTES_DARK : PALETTES;
-  const idx = palettes.findIndex(p => p.bg === bg && p.text === text);
-  return idx >= 0 ? idx : 0;
+  const pals = currentPalettes();
+  const idx = pals.findIndex(p => p.bg === bg && p.text === text);
+  // Also check the opposite theme (cards stored with whichever theme was active when created)
+  if (idx >= 0) return idx;
+  const other = PALETTES[isDark() ? 'light' : 'dark'];
+  const oi = other.findIndex(p => p.bg === bg && p.text === text);
+  return oi >= 0 ? oi : 0;
 }
 
 function renderBox(box) {
   const existing = document.getElementById('box-' + box.id);
   if (existing) {
-    // Update position & text if already rendered
     existing.style.left = box.pos_x + 'px';
     existing.style.top  = box.pos_y + 'px';
     existing.style.zIndex = box.z_index;
     existing.style.background = box.color_bg;
     existing.style.color = box.color_text;
     existing.querySelector('.phrase-text').textContent = box.text;
-    if (parseInt(existing.dataset.boardId) !== box.board_id) {
-      // Moved to different board — re-create
+    const curBoard = parseInt(existing.dataset.boardId);
+    if (curBoard !== box.board_id) {
       existing.remove();
       renderBox(box);
     }
@@ -700,7 +921,7 @@ function renderBox(box) {
   const card = document.createElement('div');
   card.className = 'phrase-card';
   card.id = 'box-' + box.id;
-  card.dataset.boxId  = box.id;
+  card.dataset.boxId   = box.id;
   card.dataset.boardId = box.board_id;
   card.dataset.paletteIdx = pi;
   card.style.left = box.pos_x + 'px';
@@ -722,7 +943,7 @@ function renderBox(box) {
   card.appendChild(textEl);
   card.appendChild(delBtn);
 
-  makeDraggable(card, box.id, box.board_id);
+  makeDraggable(card, box.id);
   makeMultiTappable(card, box.id);
 
   canvas.appendChild(card);
@@ -742,7 +963,7 @@ async function removeBox(boxId, card) {
   card.classList.add('removing');
   try {
     await apiFetch(`/boxes/${boxId}`, { method: 'DELETE' });
-  } catch (_) {/* handled by poll */}
+  } catch (_) {}
   setTimeout(() => {
     const c = document.getElementById('box-' + boxId);
     if (c) { const bid = parseInt(c.dataset.boardId); c.remove(); updateEmpty(bid); }
@@ -750,34 +971,30 @@ async function removeBox(boxId, card) {
 }
 
 // ════════════════════════════════════════════════════════
-//  Tap-to-delete (multi-tap)
+//  Tap-to-delete
 // ════════════════════════════════════════════════════════
 function makeMultiTappable(card, boxId) {
-  function onTap(e) {
+  card.addEventListener('click', function onTap(e) {
     if (e.target.classList.contains('delete-btn')) return;
     if (!tapState[boxId]) tapState[boxId] = { count: 0, timer: null };
     const ts = tapState[boxId];
     clearTimeout(ts.timer);
     ts.count++;
-
-    // Flash feedback
     card.classList.add('tap-flash');
     setTimeout(() => card.classList.remove('tap-flash'), 200);
-
     if (ts.count >= deleteTapCount) {
       ts.count = 0;
       removeBox(boxId, card);
     } else {
       ts.timer = setTimeout(() => { ts.count = 0; }, 600);
     }
-  }
-  card.addEventListener('click', onTap);
+  });
 }
 
 // ════════════════════════════════════════════════════════
 //  Drag & drop
 // ════════════════════════════════════════════════════════
-function makeDraggable(card, boxId, boardId) {
+function makeDraggable(card, boxId) {
   let startX, startY, origX, origY, moved = false;
 
   function onDown(e) {
@@ -802,17 +1019,16 @@ function makeDraggable(card, boxId, boardId) {
     const dx = touch.clientX - startX;
     const dy = touch.clientY - startY;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
-    const newX = origX + dx;
-    const newY = origY + dy;
+    const newX = Math.max(0, origX + dx);
+    const newY = Math.max(0, origY + dy);
     card.style.left = newX + 'px';
     card.style.top  = newY + 'px';
-
-    // Expand canvas for scrolling
+    // Expand canvas
     const canvas = card.parentElement;
-    const needed_w = newX + card.offsetWidth  + 20;
-    const needed_h = newY + card.offsetHeight + 20;
-    if (needed_w > parseInt(canvas.style.minWidth  || '0')) canvas.style.minWidth  = needed_w + 'px';
-    if (needed_h > parseInt(canvas.style.minHeight || '0')) canvas.style.minHeight = needed_h + 'px';
+    const nw = newX + card.offsetWidth  + 20;
+    const nh = newY + card.offsetHeight + 20;
+    if (nw > (parseInt(canvas.style.minWidth)  || 0)) canvas.style.minWidth  = nw + 'px';
+    if (nh > (parseInt(canvas.style.minHeight) || 0)) canvas.style.minHeight = nh + 'px';
   }
 
   function onUp() {
@@ -821,7 +1037,6 @@ function makeDraggable(card, boxId, boardId) {
     document.removeEventListener('mouseup',   onUp);
     document.removeEventListener('touchmove', onMove);
     document.removeEventListener('touchend',  onUp);
-
     if (moved) {
       const x = parseFloat(card.style.left);
       const y = parseFloat(card.style.top);
@@ -837,41 +1052,65 @@ function makeDraggable(card, boxId, boardId) {
 }
 
 // ════════════════════════════════════════════════════════
-//  Add phrase
+//  Add phrase (shared logic)
 // ════════════════════════════════════════════════════════
-const input    = document.getElementById('phrase-input');
-const addBtn   = document.getElementById('add-btn');
-
-async function addPhrase() {
-  const text = input.value.trim();
-  if (!text) return;
-
-  const targetBoardId = parseInt(boardSelect.value);
-  if (!targetBoardId) return;
+async function addPhrase(text, targetBoardId) {
+  text = (text || '').trim();
+  if (!text) return false;
+  targetBoardId = parseInt(targetBoardId);
+  if (!targetBoardId || isNaN(targetBoardId)) return false;
 
   const pal = getPalette(selectedPaletteIdx);
   try {
     const box = await apiFetch(`/boards/${targetBoardId}/boxes`, {
       method: 'POST',
       body: JSON.stringify({
-        board_id: targetBoardId,
+        board_id:   targetBoardId,
         text,
         color_bg:   pal.bg,
         color_text: pal.text,
       }),
     });
     renderBox(box);
-    // Switch to that board
-    if (activeBoardId !== targetBoardId) switchBoard(targetBoardId);
+    knownBoxIds.add(box.id);
+    return true;
   } catch (e) {
-    console.error('Failed to add phrase', e);
+    console.error('Failed to add phrase:', e);
+    return false;
   }
-  input.value = '';
-  input.focus();
 }
 
-addBtn.addEventListener('click', addPhrase);
-input.addEventListener('keydown', e => { if (e.key === 'Enter') addPhrase(); });
+// Toolbar mode
+const toolbarInput = document.getElementById('phrase-input');
+const addBtn       = document.getElementById('add-btn');
+const boardSelect  = document.getElementById('box-board-select');
+
+async function toolbarAdd() {
+  const ok = await addPhrase(toolbarInput.value, boardSelect.value);
+  if (ok) {
+    const bid = parseInt(boardSelect.value);
+    toolbarInput.value = '';
+    toolbarInput.focus();
+    if (activeBoardId !== bid) switchBoard(bid);
+  }
+}
+addBtn.addEventListener('click', toolbarAdd);
+toolbarInput.addEventListener('keydown', e => { if (e.key === 'Enter') toolbarAdd(); });
+
+// Manage tab mode
+const manageInput  = document.getElementById('manage-phrase-input');
+const manageAddBtn = document.getElementById('manage-add-btn');
+const manageSel    = document.getElementById('manage-board-select');
+
+async function manageAdd() {
+  const ok = await addPhrase(manageInput.value, manageSel.value);
+  if (ok) {
+    manageInput.value = '';
+    manageInput.focus();
+  }
+}
+manageAddBtn.addEventListener('click', manageAdd);
+manageInput.addEventListener('keydown', e => { if (e.key === 'Enter') manageAdd(); });
 
 // ════════════════════════════════════════════════════════
 //  Board edit modal
@@ -879,8 +1118,6 @@ input.addEventListener('keydown', e => { if (e.key === 'Enter') addPhrase(); });
 const editModal     = document.getElementById('board-edit-modal');
 const editTitleIn   = document.getElementById('edit-board-title');
 const editColorIn   = document.getElementById('edit-board-color');
-const saveEditBtn   = document.getElementById('save-board-edit');
-const cancelEditBtn = document.getElementById('cancel-board-edit');
 let editingBoardId  = null;
 
 function openBoardEdit(id) {
@@ -893,10 +1130,10 @@ function openBoardEdit(id) {
   editTitleIn.focus();
 }
 
-cancelEditBtn.addEventListener('click', () => editModal.classList.remove('visible'));
+document.getElementById('cancel-board-edit').addEventListener('click', () => editModal.classList.remove('visible'));
 editModal.addEventListener('click', e => { if (e.target === editModal) editModal.classList.remove('visible'); });
 
-saveEditBtn.addEventListener('click', async () => {
+document.getElementById('save-board-edit').addEventListener('click', async () => {
   if (!editingBoardId) return;
   const title = editTitleIn.value.trim();
   const color = editColorIn.value;
@@ -930,36 +1167,52 @@ async function apiFetch(path, opts = {}) {
 }
 
 // ════════════════════════════════════════════════════════
-//  Config endpoint (delete tap count)
+//  Config
 // ════════════════════════════════════════════════════════
 async function loadConfig() {
   try {
     const cfg = await apiFetch('/config');
-    if (cfg && cfg.delete_tap_count) {
-      deleteTapCount = cfg.delete_tap_count;
-      updateHelpTapCount();
-    }
-  } catch (_) { /* endpoint optional */ }
+    if (!cfg) return;
+    if (cfg.delete_tap_count) deleteTapCount = cfg.delete_tap_count;
+    separateAddTab = !!cfg.separate_add_tab;
+  } catch (_) {}
+}
+
+function applyUiMode() {
+  const toolbarControls = document.getElementById('toolbar-add-controls');
+  if (separateAddTab) {
+    // Hide toolbar add controls, show manage tab
+    toolbarControls.style.display = 'none';
+    manageTab.style.display = 'flex';
+  } else {
+    // Show toolbar add controls (default), hide manage tab
+    toolbarControls.style.display = 'contents';
+    manageTab.style.display = 'none';
+  }
 }
 
 // ════════════════════════════════════════════════════════
-//  Initial data load
+//  Initial load
 // ════════════════════════════════════════════════════════
 async function initialLoad() {
   try {
     boards = await apiFetch('/boards');
-    if (!boards.length) return;
+    if (!boards.length) { setSyncStatus('error'); return; }
+
     activeBoardId = boards[0].id;
     boards.forEach(b => getOrCreateCanvas(b.id));
     renderTabs();
-    boardSelect.value = activeBoardId;
 
     // Load all boxes
     const allBoxes = await apiFetch('/boxes');
-    allBoxes.forEach(box => renderBox(box));
+    allBoxes.forEach(box => {
+      renderBox(box);
+      knownBoxIds.add(box.id);
+    });
+
     setSyncStatus('ok');
   } catch (e) {
-    console.error('Initial load failed', e);
+    console.error('Initial load failed:', e);
     setSyncStatus('error');
   }
 }
@@ -967,20 +1220,16 @@ async function initialLoad() {
 // ════════════════════════════════════════════════════════
 //  Polling fallback (1 s)
 // ════════════════════════════════════════════════════════
-let knownBoxIds = new Set();
-
 async function poll() {
   try {
     const allBoxes = await apiFetch('/boxes');
     const serverIds = new Set(allBoxes.map(b => b.id));
 
-    // Add/update
     allBoxes.forEach(box => {
       renderBox(box);
       knownBoxIds.add(box.id);
     });
 
-    // Remove boxes that no longer exist on server
     knownBoxIds.forEach(id => {
       if (!serverIds.has(id)) {
         removeBoxFromDom(id);
@@ -988,20 +1237,18 @@ async function poll() {
       }
     });
 
-    // Poll boards (for title/color changes)
     const updatedBoards = await apiFetch('/boards');
-    let boardsChanged = false;
+    let changed = false;
     updatedBoards.forEach(ub => {
       const idx = boards.findIndex(b => b.id === ub.id);
       if (idx >= 0 && JSON.stringify(boards[idx]) !== JSON.stringify(ub)) {
-        boards[idx] = ub;
-        boardsChanged = true;
+        boards[idx] = ub; changed = true;
       }
     });
-    if (boardsChanged) renderTabs();
+    if (changed) renderTabs();
 
     setSyncStatus('ok');
-  } catch (e) {
+  } catch (_) {
     setSyncStatus('warn');
   }
 }
@@ -1014,13 +1261,9 @@ let wsRetryDelay = 1000;
 
 function connectWS() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  const url   = `${proto}://${location.host}/api/ws`;
-  ws = new WebSocket(url);
+  ws = new WebSocket(`${proto}://${location.host}/api/ws`);
 
-  ws.addEventListener('open', () => {
-    wsRetryDelay = 1000;
-    setSyncStatus('ok');
-  });
+  ws.addEventListener('open', () => { wsRetryDelay = 1000; setSyncStatus('ok'); });
 
   ws.addEventListener('message', e => {
     try {
@@ -1048,15 +1291,18 @@ function connectWS() {
     wsRetryDelay = Math.min(wsRetryDelay * 2, 30000);
   });
 
-  ws.addEventListener('error', () => { ws.close(); });
+  ws.addEventListener('error', () => ws.close());
 }
 
 // ════════════════════════════════════════════════════════
 //  Bootstrap
 // ════════════════════════════════════════════════════════
 (async () => {
-  updateHelpTapCount();
   await loadConfig();
+  applyUiMode();
+  renderAllSwatches();       // uses correct theme from the start
+  renderThemeIcon();
+  updateHelpText();
   await initialLoad();
   connectWS();
   setInterval(poll, POLL_MS);
