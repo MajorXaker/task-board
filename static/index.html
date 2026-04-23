@@ -915,8 +915,16 @@ function renderManageBoardList() {
     goBtn.textContent = '→ Go';
     goBtn.addEventListener('click', () => switchBoard(b.id));
 
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'btn btn-danger';
+    clearBtn.style.fontSize = 'var(--text-xs)';
+    clearBtn.style.padding = 'var(--space-1) var(--space-3)';
+    clearBtn.textContent = '🗑 Clear';
+    clearBtn.addEventListener('click', () => clearBoard(b.id));
+
     actions.appendChild(editBtn);
     actions.appendChild(goBtn);
+    actions.appendChild(clearBtn);
     row.appendChild(dot);
     row.appendChild(title);
     row.appendChild(actions);
@@ -996,6 +1004,17 @@ function removeBoxFromDom(boxId) {
   const boardId = parseInt(card.dataset.boardId);
   card.classList.add('removing');
   setTimeout(() => { card.remove(); updateEmpty(boardId); }, 200);
+}
+
+function clearBoardDom(boardId) {
+  const canvas = document.getElementById('canvas-' + boardId);
+  if (!canvas) return;
+  canvas.querySelectorAll('.phrase-card').forEach(c => {
+    knownBoxIds.delete(c.dataset.boxId);
+    c.classList.add('removing');
+    setTimeout(() => c.remove(), 200);
+  });
+  setTimeout(() => updateEmpty(boardId), 250);
 }
 
 async function removeBox(boxId, card) {
@@ -1088,6 +1107,21 @@ function makeDraggable(card, boxId) {
 
   card.addEventListener('mousedown',  onDown);
   card.addEventListener('touchstart', onDown, { passive: false });
+}
+
+// ════════════════════════════════════════════════════════
+//  Clear board
+// ════════════════════════════════════════════════════════
+async function clearBoard(boardId) {
+  if (!confirm('Remove all boxes from this board?')) return;
+  try {
+    await apiFetch(`/boards/${boardId}/boxes/clear`, { method: 'DELETE' });
+    clearBoardDom(boardId);
+    toast('Board cleared', 'success', 2000);
+  } catch (e) {
+    console.error('[clearBoard] FAILED:', e);
+    toast('Error clearing board: ' + e.message, 'error', 4000);
+  }
 }
 
 // ════════════════════════════════════════════════════════
@@ -1339,6 +1373,9 @@ function connectWS() {
           break;
         case 'BoardUpdated':
           applyBoardUpdate(msg.data);
+          break;
+        case 'BoardCleared':
+          clearBoardDom(msg.data.board_id);
           break;
       }
     } catch (_) {}

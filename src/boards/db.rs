@@ -47,3 +47,13 @@ pub async fn update_board(pool: &PgPool, id: i32, req: &UpdateBoardRequest) -> R
 
     Ok(row)
 }
+
+/// Delete all boxes belonging to a board. Returns the number of rows deleted.
+pub async fn clear_board(pool: &PgPool, board_id: i32) -> Result<u64> {
+    let res = sqlx::query("DELETE FROM boxes WHERE board_id = $1")
+        .bind(board_id)
+        .execute(pool)
+        .await
+        .context("Failed to clear board")?;
+    Ok(res.rows_affected())
+}
