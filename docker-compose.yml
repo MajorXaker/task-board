@@ -1,0 +1,42 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: phraseboard
+      POSTGRES_PASSWORD: phraseboard
+      POSTGRES_DB: phraseboard
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U phraseboard"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: phraseboard
+      DB_PASSWORD: phraseboard
+      DB_NAME: phraseboard
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8080
+      ENABLE_DOCS: "true"        # set to "false" to hide Swagger UI
+      DELETE_TAP_COUNT: "3"      # taps/clicks required to delete a box
+      DEFAULT_CANVAS_WIDTH: "1280"
+      DEFAULT_CANVAS_HEIGHT: "800"
+      RUST_LOG: "info"
+
+volumes:
+  pgdata:

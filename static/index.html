@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhraseBoard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Work+Sans:wght@300..700&display=swap" rel="stylesheet">
+<style>
+/* ─── Design Tokens ─── */
+:root, [data-theme="light"] {
+  --color-bg: #f7f6f2;
+  --color-surface: #f9f8f5;
+  --color-surface-2: #fbfbf9;
+  --color-surface-offset: #f3f0ec;
+  --color-border: #d4d1ca;
+  --color-text: #28251d;
+  --color-text-muted: #7a7974;
+  --color-text-faint: #bab9b4;
+  --color-primary: #01696f;
+  --color-primary-hover: #0c4e54;
+  --color-primary-highlight: #cedcd8;
+  --color-divider: #dcd9d5;
+  --shadow-sm: 0 1px 2px rgba(40,37,29,.06);
+  --shadow-md: 0 4px 12px rgba(40,37,29,.10);
+  --shadow-lg: 0 12px 32px rgba(40,37,29,.14);
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-full: 9999px;
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-body: 'Work Sans', 'Helvetica Neue', sans-serif;
+  --text-xs: clamp(0.72rem, 0.68rem + 0.2vw, 0.82rem);
+  --text-sm: clamp(0.875rem, 0.8rem + 0.35vw, 1rem);
+  --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+  --text-lg: clamp(1.125rem, 1rem + 0.75vw, 1.5rem);
+  --space-1: 0.25rem; --space-2: 0.5rem; --space-3: 0.75rem;
+  --space-4: 1rem; --space-5: 1.25rem; --space-6: 1.5rem; --space-8: 2rem;
+  --transition: 180ms cubic-bezier(0.16,1,0.3,1);
+}
+[data-theme="dark"] {
+  --color-bg: #171614;
+  --color-surface: #1c1b19;
+  --color-surface-2: #201f1d;
+  --color-surface-offset: #1d1c1a;
+  --color-border: #393836;
+  --color-text: #cdccca;
+  --color-text-muted: #797876;
+  --color-text-faint: #5a5957;
+  --color-primary: #4f98a3;
+  --color-primary-hover: #227f8b;
+  --color-primary-highlight: #313b3b;
+  --color-divider: #262523;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.25);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.35);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,.5);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-font-smoothing: antialiased; }
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  color: var(--color-text);
+  background: var(--color-bg);
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ─── Toolbar ─── */
+#toolbar {
+  flex-shrink: 0;
+  height: 56px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-5);
+  z-index: 1000;
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+#toolbar::-webkit-scrollbar { display: none; }
+
+#logo {
+  display: flex; align-items: center; gap: var(--space-2);
+  margin-right: var(--space-2); flex-shrink: 0;
+}
+#logo svg { color: var(--color-primary); }
+#logo span {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+#phrase-input {
+  flex: 1; min-width: 140px; max-width: 380px;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  user-select: text;
+}
+#phrase-input::placeholder { color: var(--color-text-faint); }
+#phrase-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.btn {
+  display: inline-flex; align-items: center; gap: var(--space-1);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  font-family: var(--font-body); font-size: var(--text-sm); font-weight: 500;
+  cursor: pointer; border: none; white-space: nowrap; flex-shrink: 0;
+  transition: background var(--transition), color var(--transition), box-shadow var(--transition);
+}
+.btn-primary { background: var(--color-primary); color: #fff; }
+.btn-primary:hover { background: var(--color-primary-hover); box-shadow: var(--shadow-sm); }
+.btn-primary:active { transform: scale(0.97); }
+.btn-ghost {
+  background: transparent; color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+.btn-ghost:hover { background: var(--color-surface-offset); color: var(--color-text); }
+
+/* color picker row */
+#color-swatches { display: flex; gap: var(--space-1); align-items: center; flex-shrink: 0; }
+.swatch {
+  width: 22px; height: 22px; border-radius: var(--radius-full);
+  cursor: pointer; border: 2px solid transparent;
+  transition: transform var(--transition), border-color var(--transition);
+  flex-shrink: 0;
+}
+.swatch:hover { transform: scale(1.2); }
+.swatch.active { border-color: var(--color-text); }
+
+/* board selector in toolbar */
+#board-selector-label { font-size: var(--text-xs); color: var(--color-text-muted); flex-shrink: 0; }
+#box-board-select {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+}
+
+/* theme toggle */
+#theme-toggle {
+  margin-left: auto; background: none; border: none; cursor: pointer;
+  color: var(--color-text-muted); display: flex; align-items: center;
+  padding: var(--space-1); border-radius: var(--radius-sm);
+  transition: color var(--transition); flex-shrink: 0;
+}
+#theme-toggle:hover { color: var(--color-text); }
+
+/* help toggle */
+#help-toggle {
+  background: none; border: none; cursor: pointer;
+  color: var(--color-text-muted); display: flex; align-items: center;
+  padding: var(--space-1); border-radius: var(--radius-sm);
+  transition: color var(--transition); flex-shrink: 0;
+}
+#help-toggle:hover { color: var(--color-text); }
+
+/* ─── Board tabs row ─── */
+#board-tabs-row {
+  flex-shrink: 0;
+  display: flex; align-items: stretch;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  overflow-x: auto; scrollbar-width: none;
+}
+#board-tabs-row::-webkit-scrollbar { display: none; }
+.board-tab {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: 0 var(--space-5);
+  cursor: pointer;
+  border: none; background: transparent;
+  font-family: var(--font-body); font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  border-bottom: 3px solid transparent;
+  transition: color var(--transition), border-color var(--transition), background var(--transition);
+  white-space: nowrap;
+  min-height: 40px;
+  position: relative;
+}
+.board-tab:hover { background: var(--color-surface-offset); color: var(--color-text); }
+.board-tab.active { color: var(--color-text); border-bottom-color: var(--color-primary); }
+.tab-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.tab-edit-btn {
+  opacity: 0; font-size: 10px; padding: 2px 4px;
+  background: var(--color-surface-offset);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer; color: var(--color-text-muted);
+  transition: opacity var(--transition);
+  line-height: 1;
+}
+.board-tab:hover .tab-edit-btn,
+.board-tab.active .tab-edit-btn { opacity: 1; }
+
+/* ─── Board area ─── */
+#board-area {
+  flex: 1; position: relative; overflow: auto;
+}
+.board-canvas {
+  position: absolute; top: 0; left: 0;
+  min-width: 100%; min-height: 100%;
+  display: none;
+}
+.board-canvas.active { display: block; }
+
+/* ─── Empty state ─── */
+.empty-state {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: var(--space-3); pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+.empty-state svg { color: var(--color-text-faint); }
+.empty-state p {
+  color: var(--color-text-faint); font-size: var(--text-sm);
+  text-align: center; max-width: 28ch;
+}
+.empty-state.hidden { opacity: 0; }
+
+/* ─── Phrase Card ─── */
+.phrase-card {
+  position: absolute;
+  min-width: 80px; max-width: 320px;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  cursor: grab;
+  box-shadow: var(--shadow-md);
+  font-family: var(--font-body); font-size: var(--text-sm);
+  line-height: 1.5; word-break: break-word;
+  display: flex; align-items: flex-start; gap: var(--space-2);
+  border: 1px solid rgba(0,0,0,.08);
+  animation: card-in 0.28s cubic-bezier(0.16,1,0.3,1) both;
+  transition: box-shadow var(--transition), transform var(--transition);
+}
+@keyframes card-in {
+  from { opacity: 0; transform: scale(0.7) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.phrase-card:hover { box-shadow: var(--shadow-lg); }
+.phrase-card.dragging {
+  cursor: grabbing;
+  box-shadow: var(--shadow-lg);
+  transform: scale(1.04) rotate(1.5deg);
+  z-index: 9999 !important;
+  transition: box-shadow var(--transition);
+}
+.phrase-card.removing {
+  pointer-events: none;
+  transition: opacity 0.18s, transform 0.18s !important;
+  opacity: 0 !important;
+  transform: scale(0.85) !important;
+}
+/* tap-flash feedback */
+.phrase-card.tap-flash { outline: 2px solid rgba(255,80,80,.7); }
+
+.phrase-text {
+  flex: 1; pointer-events: none; font-size: inherit;
+}
+
+.delete-btn {
+  width: 18px; height: 18px; flex-shrink: 0;
+  border-radius: var(--radius-full); border: none;
+  background: rgba(0,0,0,.12); color: currentColor;
+  cursor: pointer; opacity: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity var(--transition), background var(--transition);
+  padding: 0; line-height: 1; font-size: 11px;
+}
+.phrase-card:hover .delete-btn { opacity: 1; }
+.delete-btn:hover { background: rgba(220,50,30,.8); color: #fff; }
+
+/* ─── Help panel ─── */
+#help-panel {
+  position: fixed; top: 106px; right: var(--space-5);
+  width: min(340px, calc(100vw - 2 * var(--space-5)));
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-5);
+  z-index: 2000;
+  display: none;
+  animation: panel-in 0.22s cubic-bezier(0.16,1,0.3,1) both;
+}
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+#help-panel.visible { display: block; }
+#help-panel h3 {
+  font-family: var(--font-display); font-size: var(--text-lg);
+  margin-bottom: var(--space-4);
+}
+#help-panel ul { list-style: none; display: flex; flex-direction: column; gap: var(--space-3); }
+#help-panel li { font-size: var(--text-sm); color: var(--color-text-muted); line-height: 1.5; }
+#help-panel li strong { color: var(--color-text); }
+#help-panel .close-help {
+  position: absolute; top: var(--space-3); right: var(--space-3);
+  background: none; border: none; cursor: pointer;
+  color: var(--color-text-muted); font-size: 1.1rem; line-height: 1;
+}
+
+/* ─── Board edit modal ─── */
+#board-edit-modal {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.5);
+  display: none; align-items: center; justify-content: center;
+  z-index: 3000;
+}
+#board-edit-modal.visible { display: flex; }
+#board-edit-box {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  width: min(360px, 90vw);
+  box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column; gap: var(--space-4);
+}
+#board-edit-box h3 { font-family: var(--font-display); font-size: var(--text-lg); }
+#board-edit-box label { font-size: var(--text-sm); color: var(--color-text-muted); display: block; margin-bottom: 4px; }
+#board-edit-box input[type="text"] {
+  width: 100%; padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-family: var(--font-body); font-size: var(--text-sm);
+  outline: none; user-select: text;
+}
+#board-edit-box input[type="text"]:focus { border-color: var(--color-primary); }
+#board-edit-box input[type="color"] {
+  height: 40px; width: 100%; padding: 2px 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  cursor: pointer;
+}
+.modal-actions { display: flex; gap: var(--space-3); justify-content: flex-end; }
+
+/* ─── Sync indicator ─── */
+#sync-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #22c55e; flex-shrink: 0;
+  transition: background 0.4s;
+}
+#sync-dot.error { background: #ef4444; }
+#sync-dot.warn  { background: #f59e0b; }
+</style>
+</head>
+<body>
+
+<!-- Toolbar -->
+<header id="toolbar">
+  <div id="logo">
+    <svg width="26" height="26" viewBox="0 0 26 26" fill="none">
+      <rect x="3" y="3" width="9" height="9" rx="2" fill="currentColor" opacity="0.85"/>
+      <rect x="14" y="3" width="9" height="9" rx="2" fill="currentColor" opacity="0.5"/>
+      <rect x="3" y="14" width="9" height="9" rx="2" fill="currentColor" opacity="0.5"/>
+      <rect x="14" y="14" width="9" height="9" rx="2" fill="currentColor" opacity="0.25"/>
+    </svg>
+    <span>PhraseBoard</span>
+  </div>
+
+  <input type="text" id="phrase-input" placeholder="Type a phrase and press Enter…" maxlength="200" autocomplete="off"/>
+
+  <button class="btn btn-primary" id="add-btn">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+      <path d="M8 2v12M2 8h12"/>
+    </svg>
+    Add
+  </button>
+
+  <div id="color-swatches" aria-label="Card color"></div>
+
+  <span id="board-selector-label">to:</span>
+  <select id="box-board-select"></select>
+
+  <button id="help-toggle" title="Help" aria-label="Show instructions">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>
+  </button>
+
+  <button id="theme-toggle" aria-label="Toggle theme">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+  </button>
+
+  <div id="sync-dot" title="Connection status"></div>
+</header>
+
+<!-- Board tabs -->
+<nav id="board-tabs-row"></nav>
+
+<!-- Board area -->
+<main id="board-area"></main>
+
+<!-- Help panel -->
+<aside id="help-panel">
+  <button class="close-help" id="close-help">✕</button>
+  <h3>How to use PhraseBoard</h3>
+  <ul>
+    <li><strong>Add a box:</strong> Type text in the input bar and press <strong>Enter</strong> or tap <strong>Add</strong>. Choose a color swatch and target board first.</li>
+    <li><strong>Move a box:</strong> Drag it anywhere on the canvas. Position is saved automatically.</li>
+    <li id="help-delete-hint"><strong>Delete a box:</strong> <span id="help-tap-count"></span> — or use the ✕ button that appears on hover.</li>
+    <li><strong>Switch boards:</strong> Tap a board tab at the top.</li>
+    <li><strong>Rename a board:</strong> Click the pencil icon next to a board tab title.</li>
+    <li><strong>Scroll:</strong> If boxes are placed beyond the visible area, scroll bars appear automatically.</li>
+    <li><strong>Collaborate:</strong> Changes from other devices appear in real time via WebSocket, with 1-second polling as fallback.</li>
+  </ul>
+</aside>
+
+<!-- Board edit modal -->
+<div id="board-edit-modal">
+  <div id="board-edit-box">
+    <h3>Edit board</h3>
+    <div>
+      <label for="edit-board-title">Title</label>
+      <input type="text" id="edit-board-title" maxlength="40" autocomplete="off"/>
+    </div>
+    <div>
+      <label for="edit-board-color">Accent color</label>
+      <input type="color" id="edit-board-color"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="cancel-board-edit">Cancel</button>
+      <button class="btn btn-primary" id="save-board-edit">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+//  Config & constants
+// ════════════════════════════════════════════════════════
+const API = '/api';
+const POLL_MS = 1000;
+
+const PALETTES = [
+  { bg: '#fffbea', text: '#5c4a00', label: 'Yellow'  },
+  { bg: '#e6f4ea', text: '#1a4022', label: 'Green'   },
+  { bg: '#e8f4fd', text: '#0a3356', label: 'Blue'    },
+  { bg: '#fde8f4', text: '#560a3a', label: 'Pink'    },
+  { bg: '#fdeee8', text: '#56200a', label: 'Orange'  },
+  { bg: '#f0e8fd', text: '#2e0a56', label: 'Purple'  },
+  { bg: '#e8f3f4', text: '#0a3540', label: 'Teal'    },
+  { bg: '#f4f4f4', text: '#1a1a1a', label: 'Neutral' },
+];
+const PALETTES_DARK = [
+  { bg: '#2e2800', text: '#f0d96b', label: 'Yellow'  },
+  { bg: '#0d2210', text: '#7de892', label: 'Green'   },
+  { bg: '#091e30', text: '#7ec6f5', label: 'Blue'    },
+  { bg: '#300a22', text: '#f5a0d9', label: 'Pink'    },
+  { bg: '#2e1008', text: '#f5b07a', label: 'Orange'  },
+  { bg: '#1c0a2e', text: '#c49af5', label: 'Purple'  },
+  { bg: '#081e20', text: '#7ad8df', label: 'Teal'    },
+  { bg: '#1e1e1e', text: '#c8c8c8', label: 'Neutral' },
+];
+
+// ════════════════════════════════════════════════════════
+//  State
+// ════════════════════════════════════════════════════════
+let boards      = [];          // [{id, slot, title, color}, ...]
+let activeBoardId = null;      // currently visible board id
+let selectedPaletteIdx = 0;
+let zCounter    = 10;
+let deleteTapCount = 3;        // overridden from backend config
+
+// Per-box tap tracking: { [boxId]: { count, timer } }
+const tapState = {};
+
+// ════════════════════════════════════════════════════════
+//  Theme
+// ════════════════════════════════════════════════════════
+function isDark() { return document.documentElement.getAttribute('data-theme') === 'dark'; }
+function getPalette(idx) { return isDark() ? PALETTES_DARK[idx] : PALETTES[idx]; }
+
+function applyThemeToCards() {
+  document.querySelectorAll('.phrase-card').forEach(card => {
+    const pi = parseInt(card.dataset.paletteIdx);
+    if (!isNaN(pi)) {
+      const p = getPalette(pi);
+      card.style.background = p.bg;
+      card.style.color = p.text;
+    }
+  });
+}
+
+const themeBtn = document.getElementById('theme-toggle');
+themeBtn.addEventListener('click', () => {
+  const next = isDark() ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  updateSwatches();
+  applyThemeToCards();
+  renderThemeIcon();
+});
+function renderThemeIcon() {
+  themeBtn.innerHTML = isDark()
+    ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`
+    : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>`;
+}
+
+// ════════════════════════════════════════════════════════
+//  Color swatches
+// ════════════════════════════════════════════════════════
+const swatchesEl = document.getElementById('color-swatches');
+PALETTES.forEach((p, i) => {
+  const s = document.createElement('button');
+  s.className = 'swatch' + (i === 0 ? ' active' : '');
+  s.title = p.label;
+  s.style.background = p.bg;
+  s.addEventListener('click', () => {
+    selectedPaletteIdx = i;
+    document.querySelectorAll('.swatch').forEach((el, j) =>
+      el.classList.toggle('active', j === i));
+  });
+  swatchesEl.appendChild(s);
+});
+function updateSwatches() {
+  document.querySelectorAll('.swatch').forEach((s, i) => {
+    s.style.background = isDark() ? PALETTES_DARK[i].bg : PALETTES[i].bg;
+  });
+}
+
+// ════════════════════════════════════════════════════════
+//  Help panel
+// ════════════════════════════════════════════════════════
+const helpPanel  = document.getElementById('help-panel');
+const helpToggle = document.getElementById('help-toggle');
+const closeHelp  = document.getElementById('close-help');
+helpToggle.addEventListener('click', () => helpPanel.classList.toggle('visible'));
+closeHelp.addEventListener('click', () => helpPanel.classList.remove('visible'));
+
+function updateHelpTapCount() {
+  const n = deleteTapCount;
+  const word = n === 3 ? 'Triple-tap/click' : `${n}× tap/click`;
+  document.getElementById('help-tap-count').textContent = `${word} a card to delete it`;
+}
+
+// ════════════════════════════════════════════════════════
+//  Sync dot
+// ════════════════════════════════════════════════════════
+const syncDot = document.getElementById('sync-dot');
+function setSyncStatus(s) { // 'ok' | 'warn' | 'error'
+  syncDot.className = s === 'ok' ? '' : s;
+  syncDot.title = s === 'ok' ? 'Connected' : s === 'warn' ? 'Reconnecting…' : 'Disconnected';
+}
+
+// ════════════════════════════════════════════════════════
+//  Board tabs
+// ════════════════════════════════════════════════════════
+const tabsRow   = document.getElementById('board-tabs-row');
+const boardArea = document.getElementById('board-area');
+const boardSelect = document.getElementById('box-board-select');
+
+function renderTabs() {
+  tabsRow.innerHTML = '';
+  boardSelect.innerHTML = '';
+  boards.forEach(b => {
+    // Tab button
+    const tab = document.createElement('button');
+    tab.className = 'board-tab' + (b.id === activeBoardId ? ' active' : '');
+    tab.dataset.boardId = b.id;
+
+    const dot = document.createElement('span');
+    dot.className = 'tab-dot';
+    dot.style.background = b.color;
+
+    const label = document.createElement('span');
+    label.textContent = b.title;
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'tab-edit-btn';
+    editBtn.title = 'Edit board';
+    editBtn.innerHTML = '✎';
+    editBtn.addEventListener('click', e => { e.stopPropagation(); openBoardEdit(b.id); });
+
+    tab.appendChild(dot);
+    tab.appendChild(label);
+    tab.appendChild(editBtn);
+    tab.addEventListener('click', () => switchBoard(b.id));
+    tabsRow.appendChild(tab);
+
+    // Dropdown option
+    const opt = document.createElement('option');
+    opt.value = b.id;
+    opt.textContent = b.title;
+    boardSelect.appendChild(opt);
+  });
+}
+
+function switchBoard(id) {
+  activeBoardId = id;
+  document.querySelectorAll('.board-canvas').forEach(c => c.classList.remove('active'));
+  const canvas = document.getElementById('canvas-' + id);
+  if (canvas) canvas.classList.add('active');
+  document.querySelectorAll('.board-tab').forEach(t =>
+    t.classList.toggle('active', parseInt(t.dataset.boardId) === id));
+  // Update board dot color on tab
+  const b = boards.find(x => x.id === id);
+  if (b) document.getElementById('board-tabs-row')
+    .querySelectorAll('.board-tab.active .tab-dot')
+    .forEach(d => d.style.background = b.color);
+}
+
+function getOrCreateCanvas(boardId) {
+  let canvas = document.getElementById('canvas-' + boardId);
+  if (!canvas) {
+    canvas = document.createElement('div');
+    canvas.className = 'board-canvas' + (boardId === activeBoardId ? ' active' : '');
+    canvas.id = 'canvas-' + boardId;
+
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.id = 'empty-' + boardId;
+    empty.innerHTML = `
+      <svg width="48" height="48" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="8" y="8" width="14" height="14" rx="3"/>
+        <rect x="26" y="8" width="14" height="14" rx="3" opacity="0.5"/>
+        <rect x="8" y="26" width="14" height="14" rx="3" opacity="0.5"/>
+        <rect x="26" y="26" width="14" height="14" rx="3" opacity="0.25"/>
+      </svg>
+      <p>Add a phrase above to place it on this board</p>`;
+    canvas.appendChild(empty);
+    boardArea.appendChild(canvas);
+  }
+  return canvas;
+}
+
+function updateEmpty(boardId) {
+  const canvas = document.getElementById('canvas-' + boardId);
+  if (!canvas) return;
+  const hasCards = canvas.querySelectorAll('.phrase-card').length > 0;
+  const empty = document.getElementById('empty-' + boardId);
+  if (empty) empty.classList.toggle('hidden', hasCards);
+}
+
+// ════════════════════════════════════════════════════════
+//  Phrase cards
+// ════════════════════════════════════════════════════════
+function paletteIdxFromColors(bg, text) {
+  const palettes = isDark() ? PALETTES_DARK : PALETTES;
+  const idx = palettes.findIndex(p => p.bg === bg && p.text === text);
+  return idx >= 0 ? idx : 0;
+}
+
+function renderBox(box) {
+  const existing = document.getElementById('box-' + box.id);
+  if (existing) {
+    // Update position & text if already rendered
+    existing.style.left = box.pos_x + 'px';
+    existing.style.top  = box.pos_y + 'px';
+    existing.style.zIndex = box.z_index;
+    existing.style.background = box.color_bg;
+    existing.style.color = box.color_text;
+    existing.querySelector('.phrase-text').textContent = box.text;
+    if (parseInt(existing.dataset.boardId) !== box.board_id) {
+      // Moved to different board — re-create
+      existing.remove();
+      renderBox(box);
+    }
+    return;
+  }
+
+  const canvas = getOrCreateCanvas(box.board_id);
+  const pi = paletteIdxFromColors(box.color_bg, box.color_text);
+
+  const card = document.createElement('div');
+  card.className = 'phrase-card';
+  card.id = 'box-' + box.id;
+  card.dataset.boxId  = box.id;
+  card.dataset.boardId = box.board_id;
+  card.dataset.paletteIdx = pi;
+  card.style.left = box.pos_x + 'px';
+  card.style.top  = box.pos_y + 'px';
+  card.style.background = box.color_bg;
+  card.style.color = box.color_text;
+  card.style.zIndex = box.z_index;
+
+  const textEl = document.createElement('span');
+  textEl.className = 'phrase-text';
+  textEl.textContent = box.text;
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'delete-btn';
+  delBtn.innerHTML = '✕';
+  delBtn.setAttribute('aria-label', 'Delete phrase');
+  delBtn.addEventListener('click', e => { e.stopPropagation(); removeBox(box.id, card); });
+
+  card.appendChild(textEl);
+  card.appendChild(delBtn);
+
+  makeDraggable(card, box.id, box.board_id);
+  makeMultiTappable(card, box.id);
+
+  canvas.appendChild(card);
+  if (parseInt(card.style.zIndex) > zCounter) zCounter = parseInt(card.style.zIndex);
+  updateEmpty(box.board_id);
+}
+
+function removeBoxFromDom(boxId) {
+  const card = document.getElementById('box-' + boxId);
+  if (!card) return;
+  const boardId = parseInt(card.dataset.boardId);
+  card.classList.add('removing');
+  setTimeout(() => { card.remove(); updateEmpty(boardId); }, 200);
+}
+
+async function removeBox(boxId, card) {
+  card.classList.add('removing');
+  try {
+    await apiFetch(`/boxes/${boxId}`, { method: 'DELETE' });
+  } catch (_) {/* handled by poll */}
+  setTimeout(() => {
+    const c = document.getElementById('box-' + boxId);
+    if (c) { const bid = parseInt(c.dataset.boardId); c.remove(); updateEmpty(bid); }
+  }, 200);
+}
+
+// ════════════════════════════════════════════════════════
+//  Tap-to-delete (multi-tap)
+// ════════════════════════════════════════════════════════
+function makeMultiTappable(card, boxId) {
+  function onTap(e) {
+    if (e.target.classList.contains('delete-btn')) return;
+    if (!tapState[boxId]) tapState[boxId] = { count: 0, timer: null };
+    const ts = tapState[boxId];
+    clearTimeout(ts.timer);
+    ts.count++;
+
+    // Flash feedback
+    card.classList.add('tap-flash');
+    setTimeout(() => card.classList.remove('tap-flash'), 200);
+
+    if (ts.count >= deleteTapCount) {
+      ts.count = 0;
+      removeBox(boxId, card);
+    } else {
+      ts.timer = setTimeout(() => { ts.count = 0; }, 600);
+    }
+  }
+  card.addEventListener('click', onTap);
+}
+
+// ════════════════════════════════════════════════════════
+//  Drag & drop
+// ════════════════════════════════════════════════════════
+function makeDraggable(card, boxId, boardId) {
+  let startX, startY, origX, origY, moved = false;
+
+  function onDown(e) {
+    if (e.target.classList.contains('delete-btn')) return;
+    const touch = e.touches ? e.touches[0] : e;
+    startX = touch.clientX; startY = touch.clientY;
+    origX = parseFloat(card.style.left) || 0;
+    origY = parseFloat(card.style.top)  || 0;
+    moved = false;
+    card.style.zIndex = ++zCounter;
+    card.classList.add('dragging');
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup',   onUp);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend',  onUp);
+    e.preventDefault();
+  }
+
+  function onMove(e) {
+    e.preventDefault();
+    const touch = e.touches ? e.touches[0] : e;
+    const dx = touch.clientX - startX;
+    const dy = touch.clientY - startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+    const newX = origX + dx;
+    const newY = origY + dy;
+    card.style.left = newX + 'px';
+    card.style.top  = newY + 'px';
+
+    // Expand canvas for scrolling
+    const canvas = card.parentElement;
+    const needed_w = newX + card.offsetWidth  + 20;
+    const needed_h = newY + card.offsetHeight + 20;
+    if (needed_w > parseInt(canvas.style.minWidth  || '0')) canvas.style.minWidth  = needed_w + 'px';
+    if (needed_h > parseInt(canvas.style.minHeight || '0')) canvas.style.minHeight = needed_h + 'px';
+  }
+
+  function onUp() {
+    card.classList.remove('dragging');
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup',   onUp);
+    document.removeEventListener('touchmove', onMove);
+    document.removeEventListener('touchend',  onUp);
+
+    if (moved) {
+      const x = parseFloat(card.style.left);
+      const y = parseFloat(card.style.top);
+      apiFetch(`/boxes/${boxId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ pos_x: x, pos_y: y, z_index: zCounter }),
+      }).catch(() => {});
+    }
+  }
+
+  card.addEventListener('mousedown',  onDown);
+  card.addEventListener('touchstart', onDown, { passive: false });
+}
+
+// ════════════════════════════════════════════════════════
+//  Add phrase
+// ════════════════════════════════════════════════════════
+const input    = document.getElementById('phrase-input');
+const addBtn   = document.getElementById('add-btn');
+
+async function addPhrase() {
+  const text = input.value.trim();
+  if (!text) return;
+
+  const targetBoardId = parseInt(boardSelect.value);
+  if (!targetBoardId) return;
+
+  const pal = getPalette(selectedPaletteIdx);
+  try {
+    const box = await apiFetch(`/boards/${targetBoardId}/boxes`, {
+      method: 'POST',
+      body: JSON.stringify({
+        board_id: targetBoardId,
+        text,
+        color_bg:   pal.bg,
+        color_text: pal.text,
+      }),
+    });
+    renderBox(box);
+    // Switch to that board
+    if (activeBoardId !== targetBoardId) switchBoard(targetBoardId);
+  } catch (e) {
+    console.error('Failed to add phrase', e);
+  }
+  input.value = '';
+  input.focus();
+}
+
+addBtn.addEventListener('click', addPhrase);
+input.addEventListener('keydown', e => { if (e.key === 'Enter') addPhrase(); });
+
+// ════════════════════════════════════════════════════════
+//  Board edit modal
+// ════════════════════════════════════════════════════════
+const editModal     = document.getElementById('board-edit-modal');
+const editTitleIn   = document.getElementById('edit-board-title');
+const editColorIn   = document.getElementById('edit-board-color');
+const saveEditBtn   = document.getElementById('save-board-edit');
+const cancelEditBtn = document.getElementById('cancel-board-edit');
+let editingBoardId  = null;
+
+function openBoardEdit(id) {
+  const b = boards.find(x => x.id === id);
+  if (!b) return;
+  editingBoardId = id;
+  editTitleIn.value = b.title;
+  editColorIn.value = b.color;
+  editModal.classList.add('visible');
+  editTitleIn.focus();
+}
+
+cancelEditBtn.addEventListener('click', () => editModal.classList.remove('visible'));
+editModal.addEventListener('click', e => { if (e.target === editModal) editModal.classList.remove('visible'); });
+
+saveEditBtn.addEventListener('click', async () => {
+  if (!editingBoardId) return;
+  const title = editTitleIn.value.trim();
+  const color = editColorIn.value;
+  try {
+    const updated = await apiFetch(`/boards/${editingBoardId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title: title || undefined, color }),
+    });
+    applyBoardUpdate(updated);
+  } catch (e) { console.error('Failed to update board', e); }
+  editModal.classList.remove('visible');
+});
+
+function applyBoardUpdate(updated) {
+  const idx = boards.findIndex(b => b.id === updated.id);
+  if (idx >= 0) boards[idx] = updated;
+  renderTabs();
+}
+
+// ════════════════════════════════════════════════════════
+//  API helpers
+// ════════════════════════════════════════════════════════
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+    ...opts,
+  });
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+// ════════════════════════════════════════════════════════
+//  Config endpoint (delete tap count)
+// ════════════════════════════════════════════════════════
+async function loadConfig() {
+  try {
+    const cfg = await apiFetch('/config');
+    if (cfg && cfg.delete_tap_count) {
+      deleteTapCount = cfg.delete_tap_count;
+      updateHelpTapCount();
+    }
+  } catch (_) { /* endpoint optional */ }
+}
+
+// ════════════════════════════════════════════════════════
+//  Initial data load
+// ════════════════════════════════════════════════════════
+async function initialLoad() {
+  try {
+    boards = await apiFetch('/boards');
+    if (!boards.length) return;
+    activeBoardId = boards[0].id;
+    boards.forEach(b => getOrCreateCanvas(b.id));
+    renderTabs();
+    boardSelect.value = activeBoardId;
+
+    // Load all boxes
+    const allBoxes = await apiFetch('/boxes');
+    allBoxes.forEach(box => renderBox(box));
+    setSyncStatus('ok');
+  } catch (e) {
+    console.error('Initial load failed', e);
+    setSyncStatus('error');
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  Polling fallback (1 s)
+// ════════════════════════════════════════════════════════
+let knownBoxIds = new Set();
+
+async function poll() {
+  try {
+    const allBoxes = await apiFetch('/boxes');
+    const serverIds = new Set(allBoxes.map(b => b.id));
+
+    // Add/update
+    allBoxes.forEach(box => {
+      renderBox(box);
+      knownBoxIds.add(box.id);
+    });
+
+    // Remove boxes that no longer exist on server
+    knownBoxIds.forEach(id => {
+      if (!serverIds.has(id)) {
+        removeBoxFromDom(id);
+        knownBoxIds.delete(id);
+      }
+    });
+
+    // Poll boards (for title/color changes)
+    const updatedBoards = await apiFetch('/boards');
+    let boardsChanged = false;
+    updatedBoards.forEach(ub => {
+      const idx = boards.findIndex(b => b.id === ub.id);
+      if (idx >= 0 && JSON.stringify(boards[idx]) !== JSON.stringify(ub)) {
+        boards[idx] = ub;
+        boardsChanged = true;
+      }
+    });
+    if (boardsChanged) renderTabs();
+
+    setSyncStatus('ok');
+  } catch (e) {
+    setSyncStatus('warn');
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  WebSocket
+// ════════════════════════════════════════════════════════
+let ws = null;
+let wsRetryDelay = 1000;
+
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  const url   = `${proto}://${location.host}/api/ws`;
+  ws = new WebSocket(url);
+
+  ws.addEventListener('open', () => {
+    wsRetryDelay = 1000;
+    setSyncStatus('ok');
+  });
+
+  ws.addEventListener('message', e => {
+    try {
+      const msg = JSON.parse(e.data);
+      switch (msg.event) {
+        case 'BoxCreated':
+        case 'BoxUpdated':
+          renderBox(msg.data);
+          knownBoxIds.add(msg.data.id);
+          break;
+        case 'BoxDeleted':
+          removeBoxFromDom(msg.data.id);
+          knownBoxIds.delete(msg.data.id);
+          break;
+        case 'BoardUpdated':
+          applyBoardUpdate(msg.data);
+          break;
+      }
+    } catch (_) {}
+  });
+
+  ws.addEventListener('close', () => {
+    setSyncStatus('warn');
+    setTimeout(connectWS, Math.min(wsRetryDelay, 30000));
+    wsRetryDelay = Math.min(wsRetryDelay * 2, 30000);
+  });
+
+  ws.addEventListener('error', () => { ws.close(); });
+}
+
+// ════════════════════════════════════════════════════════
+//  Bootstrap
+// ════════════════════════════════════════════════════════
+(async () => {
+  updateHelpTapCount();
+  await loadConfig();
+  await initialLoad();
+  connectWS();
+  setInterval(poll, POLL_MS);
+})();
+</script>
+</body>
+</html>
