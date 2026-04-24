@@ -38,6 +38,7 @@ pub struct ServerConfig {
     pub port: u16,
     /// Whether to expose the Swagger UI at /api/docs.
     pub enable_docs: bool,
+    pub log_level: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -81,6 +82,7 @@ pub fn load_config() -> Result<AppConfig> {
         host: env_or("SERVER_HOST", "0.0.0.0"),
         port: env_or("SERVER_PORT", "8080").parse::<u16>().context("SERVER_PORT must be a valid port")?,
         enable_docs: env_or("ENABLE_DOCS", "true").to_lowercase() != "false",
+        log_level: env_or("LOG_LEVEL", "info"),
     };
 
     let app = AppSettings {

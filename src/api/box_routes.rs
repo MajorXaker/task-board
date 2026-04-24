@@ -69,8 +69,6 @@ pub async fn create_box(
         "create_box: request received"
     );
 
-    body.board_id = board_id;
-
     // Scatter new boxes within the configured default canvas area
     if body.pos_x.is_none() {
         body.pos_x = Some(40.0 + rand_offset(state.app_settings.default_canvas_width - 340.0));
@@ -86,7 +84,7 @@ pub async fn create_box(
         "create_box: resolved position"
     );
 
-    match db::create_box(&state.db_pool, &body, body.pos_x.unwrap(), body.pos_y.unwrap()).await {
+    match db::create_box(&state.db_pool, &body, body.pos_x.unwrap(), body.pos_y.unwrap(), board_id).await {
         Ok(b) => {
             info!(
                 board_id,

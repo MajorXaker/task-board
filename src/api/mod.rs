@@ -96,18 +96,14 @@ pub struct ApiDoc;
 /// - Everything else (unknown paths, SPA client routes) falls back to `index.html`
 /// - The `/api` prefix is matched first; `ServeDir` never sees `/api/…` paths
 pub fn create_router(state: AppState, enable_docs: bool, static_dir: &str) -> Router {
-    // ── API sub-router ──────────────────────────────────────────────────────
-    //
-    // IMPORTANT: In Axum 0.7 calling .route() twice with the same path
-    // silently replaces the first registration.  All HTTP methods for a
-    // given path MUST be combined in a single .route() call.
     let mut api = Router::new()
         .route("/__heartbeat__", get(health))
         .route("/config", get(config_routes::get_config))
         // boards collection
         .route(
             "/boards",
-            get(board_routes::list_boards).post(board_routes::create_board),
+            get(board_routes::list_boards)
+                .post(board_routes::create_board),
         )
         // single board
         .route(
@@ -119,7 +115,7 @@ pub fn create_router(state: AppState, enable_docs: bool, static_dir: &str) -> Ro
         // boxes on a board
         .route(
             "/boards/{board_id}/boxes",
-            get(box_routes::list_boxes).post(box_routes::create_box),
+            post(box_routes::create_box).get(box_routes::list_boxes),
         )
         // clear all boxes on a board
         .route(
@@ -135,12 +131,13 @@ pub fn create_router(state: AppState, enable_docs: bool, static_dir: &str) -> Ro
         )
         .with_state(state.clone());
 
-    let api = if enable_docs {
-        debug!("Enabling docs endpoint");
-        api.merge(SwaggerUi::new("/docs").url("/docs/openapi.json", ApiDoc::openapi()))
-    } else {
-        api
-    };
+    // let api = if enable_docs {
+    //     debug!("Enabling docs endpoint");
+    //     api.merge(SwaggerUi::new("/docs").url("/api/docs/openapi.json", ApiDoc::openapi()))
+    // } else {
+    //     api
+    // };
+
 
     // ── Static file serving + SPA fallback ─────────────────────────────────
     //
@@ -167,8 +164,17 @@ pub fn create_router(state: AppState, enable_docs: bool, static_dir: &str) -> Ro
     //     }
     // });
 
-    Router::new()
-        .nest("/api", api)
+    let mut root = Router::new()
+        .nest("/api", api);
         // .nest_service("/static", ServeDir::new("static"))
-        // .fallback(spa_fallback)
+        // .fallback(spa_fallback.clone());
+
+    if enable_docs {
+        debug!("Enabling docs endpoint");
+        root = root.merge(
+            SwaggerUi::new("/api/docs").url("/api/docs/openapi.json", ApiDoc::openapi()),
+        );
+    }
+
+    root
 }

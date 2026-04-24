@@ -17,10 +17,19 @@ use api::{AppState, create_router, StateChange};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+
+    // 2. Load configuration from environment variables.
+    dotenvy::dotenv().ok(); // silently ignores missing .env
+    let cfg = config::load_config().unwrap_or_else(|e| {
+        error!(error = %e, "Configuration error — aborting");
+        std::process::exit(1);
+    });
+
     // 1. Structured logging.
     fmt()
         .with_env_filter(
-            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+            EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| EnvFilter::new(cfg.server.log_level.clone())),
         )
         .init();
 
