@@ -456,6 +456,45 @@ body {
 }
 #sync-dot.error { background: #ef4444; }
 #sync-dot.warn  { background: #f59e0b; }
+
+/* ─── Toast notifications ─── */
+#toast-container {
+  position: fixed;
+  bottom: var(--space-5);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  z-index: 9000;
+  pointer-events: none;
+}
+.toast {
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-full);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: var(--shadow-lg);
+  animation: toast-in 0.22s cubic-bezier(0.16,1,0.3,1) both;
+  pointer-events: none;
+}
+.toast.success { background: #16a34a; color: #fff; }
+.toast.error   { background: #dc2626; color: #fff; }
+.toast.info    { background: var(--color-primary); color: #fff; }
+.toast.warn    { background: #d97706; color: #fff; }
+.toast.fade-out {
+  animation: toast-out 0.3s ease forwards;
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.9); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes toast-out {
+  to { opacity: 0; transform: translateY(8px) scale(0.92); }
+}
 </style>
 </head>
 <body>
@@ -632,6 +671,7 @@ let separateAddTab = false;  // overridden from /api/config
 
 const tapState = {};        // per-box tap tracking
 let knownBoxIds = new Set();
+let maxBoards = 5;  // overridden from /api/config
 
 // ════════════════════════════════════════════════════════
 //  Theme
@@ -847,6 +887,13 @@ function renderManageBoardList() {
   const list = document.getElementById('manage-board-list');
   if (!list) return;
   list.innerHTML = '';
+
+  // Board count indicator
+  const counter = document.createElement('p');
+  counter.style.cssText = 'font-size:var(--text-xs);color:var(--color-text-muted);margin-bottom:var(--space-3)';
+  counter.textContent = `${boards.length} / ${maxBoards} boards`;
+  list.appendChild(counter);
+
   boards.forEach(b => {
     const row = document.createElement('div');
     row.className = 'board-row';
@@ -864,25 +911,67 @@ function renderManageBoardList() {
 
     const editBtn = document.createElement('button');
     editBtn.className = 'btn btn-ghost';
-    editBtn.style.fontSize = 'var(--text-xs)';
-    editBtn.style.padding = 'var(--space-1) var(--space-3)';
+    editBtn.style.cssText = 'font-size:var(--text-xs);padding:var(--space-1) var(--space-3)';
     editBtn.textContent = '✎ Edit';
     editBtn.addEventListener('click', () => openBoardEdit(b.id));
 
     const goBtn = document.createElement('button');
     goBtn.className = 'btn btn-ghost';
-    goBtn.style.fontSize = 'var(--text-xs)';
-    goBtn.style.padding = 'var(--space-1) var(--space-3)';
+    goBtn.style.cssText = 'font-size:var(--text-xs);padding:var(--space-1) var(--space-3)';
     goBtn.textContent = '→ Go';
     goBtn.addEventListener('click', () => switchBoard(b.id));
 
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'btn btn-ghost';
+    clearBtn.style.cssText = 'font-size:var(--text-xs);padding:var(--space-1) var(--space-3)';
+    clearBtn.textContent = '⊘ Clear';
+    clearBtn.addEventListener('click', () => clearBoard(b.id));
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn btn-danger';
+    delBtn.style.cssText = 'font-size:var(--text-xs);padding:var(--space-1) var(--space-3)';
+    delBtn.textContent = '✕ Delete';
+    delBtn.addEventListener('click', () => deleteBoard(b.id));
+
     actions.appendChild(editBtn);
     actions.appendChild(goBtn);
+    actions.appendChild(clearBtn);
+    actions.appendChild(delBtn);
     row.appendChild(dot);
     row.appendChild(title);
     row.appendChild(actions);
     list.appendChild(row);
   });
+
+  // Add-board form at the bottom
+  if (boards.length < maxBoards) {
+    const addRow = document.createElement('div');
+    addRow.style.cssText = 'display:flex;gap:var(--space-2);align-items:center;margin-top:var(--space-4);flex-wrap:wrap';
+
+    const nameIn = document.createElement('input');
+    nameIn.type = 'text';
+    nameIn.className = 'form-input';
+    nameIn.placeholder = 'New board name…';
+    nameIn.maxLength = 40;
+    nameIn.style.cssText = 'flex:1;min-width:140px;user-select:text';
+
+    const colorIn = document.createElement('input');
+    colorIn.type = 'color';
+    colorIn.value = '#4f98a3';
+    colorIn.style.cssText = 'width:36px;height:34px;padding:2px;border:1px solid var(--color-border);border-radius:var(--radius-md);background:var(--color-surface-2);cursor:pointer;flex-shrink:0';
+
+    const addBtn2 = document.createElement('button');
+    addBtn2.className = 'btn btn-primary';
+    addBtn2.style.cssText = 'font-size:var(--text-xs);padding:var(--space-1) var(--space-4)';
+    addBtn2.textContent = '+ Add board';
+    addBtn2.addEventListener('click', () => createBoard(nameIn.value.trim(), colorIn.value));
+    nameIn.addEventListener('keydown', e => { if (e.key === 'Enter') createBoard(nameIn.value.trim(), colorIn.value); });
+
+    addRow.appendChild(nameIn);
+    addRow.appendChild(colorIn);
+    addRow.appendChild(addBtn2);
+    list.appendChild(addRow);
+  }
 }
 
 // ════════════════════════════════════════════════════════
@@ -957,6 +1046,32 @@ function removeBoxFromDom(boxId) {
   const boardId = parseInt(card.dataset.boardId);
   card.classList.add('removing');
   setTimeout(() => { card.remove(); updateEmpty(boardId); }, 200);
+}
+
+function handleBoardDeleted(boardId) {
+  boards = boards.filter(b => b.id !== boardId);
+  const canvas = document.getElementById('canvas-' + boardId);
+  if (canvas) canvas.remove();
+  knownBoxIds.forEach(id => {
+    const card = document.getElementById('box-' + id);
+    if (card && parseInt(card.dataset.boardId) === boardId) knownBoxIds.delete(id);
+  });
+  if (activeBoardId === boardId) {
+    activeBoardId = boards.length ? boards[0].id : null;
+    if (activeBoardId) switchBoard(activeBoardId);
+  }
+  renderTabs();
+}
+
+function clearBoardDom(boardId) {
+  const canvas = document.getElementById('canvas-' + boardId);
+  if (!canvas) return;
+  canvas.querySelectorAll('.phrase-card').forEach(c => {
+    knownBoxIds.delete(c.dataset.boxId);
+    c.classList.add('removing');
+    setTimeout(() => c.remove(), 200);
+  });
+  setTimeout(() => updateEmpty(boardId), 250);
 }
 
 async function removeBox(boxId, card) {
@@ -1052,30 +1167,103 @@ function makeDraggable(card, boxId) {
 }
 
 // ════════════════════════════════════════════════════════
+//  Create / delete boards
+// ════════════════════════════════════════════════════════
+async function createBoard(title, color) {
+  if (boards.length >= maxBoards) {
+    toast(`Board limit of ${maxBoards} reached`, 'warn', 3000);
+    return;
+  }
+  try {
+    const board = await apiFetch('/boards', {
+      method: 'POST',
+      body: JSON.stringify({ title: title || 'New Board', color: color || '#4f98a3' }),
+    });
+    boards.push(board);
+    getOrCreateCanvas(board.id);
+    renderTabs();
+    toast(`Board "${board.title}" created`, 'success', 2500);
+    switchBoard(board.id);
+  } catch (e) {
+    console.error('[createBoard] FAILED:', e);
+    toast('Error creating board: ' + e.message, 'error', 4000);
+  }
+}
+
+async function deleteBoard(boardId) {
+  const b = boards.find(x => x.id === boardId);
+  if (!b) return;
+  if (!confirm(`Delete board "${b.title}" and all its boxes? This cannot be undone.`)) return;
+  try {
+    await apiFetch(`/boards/${boardId}`, { method: 'DELETE' });
+    handleBoardDeleted(boardId);
+    toast(`Board "${b.title}" deleted`, 'success', 2500);
+  } catch (e) {
+    console.error('[deleteBoard] FAILED:', e);
+    toast('Error deleting board: ' + e.message, 'error', 4000);
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  Clear board
+// ════════════════════════════════════════════════════════
+async function clearBoard(boardId) {
+  if (!confirm('Remove all boxes from this board?')) return;
+  try {
+    await apiFetch(`/boards/${boardId}/boxes/clear`, { method: 'DELETE' });
+    clearBoardDom(boardId);
+    toast('Board cleared', 'success', 2000);
+  } catch (e) {
+    console.error('[clearBoard] FAILED:', e);
+    toast('Error clearing board: ' + e.message, 'error', 4000);
+  }
+}
+
+// ════════════════════════════════════════════════════════
 //  Add phrase (shared logic)
 // ════════════════════════════════════════════════════════
 async function addPhrase(text, targetBoardId) {
   text = (text || '').trim();
-  if (!text) return false;
+  if (!text) {
+    console.warn('[addPhrase] Aborted: empty text');
+    toast('Please enter some text first', 'warn', 2500);
+    return false;
+  }
   targetBoardId = parseInt(targetBoardId);
-  if (!targetBoardId || isNaN(targetBoardId)) return false;
+  if (!targetBoardId || isNaN(targetBoardId)) {
+    console.error('[addPhrase] Aborted: invalid targetBoardId =', targetBoardId);
+    toast('No board selected — please try again', 'error');
+    return false;
+  }
 
   const pal = getPalette(selectedPaletteIdx);
+  const payload = {
+    board_id:   targetBoardId,
+    text,
+    color_bg:   pal.bg,
+    color_text: pal.text,
+  };
+  console.log('[addPhrase] Sending POST /api/boards/' + targetBoardId + '/boxes', payload);
+
+  const pending = toast('Adding "' + text + '"…', 'info', 10000);
+
   try {
     const box = await apiFetch(`/boards/${targetBoardId}/boxes`, {
       method: 'POST',
-      body: JSON.stringify({
-        board_id:   targetBoardId,
-        text,
-        color_bg:   pal.bg,
-        color_text: pal.text,
-      }),
+      body: JSON.stringify(payload),
     });
+    pending.classList.add('fade-out');
+    setTimeout(() => pending.remove(), 350);
+    console.log('[addPhrase] Success — box created:', box);
+    toast('✓ Added "' + box.text + '"', 'success', 2500);
     renderBox(box);
     knownBoxIds.add(box.id);
     return true;
   } catch (e) {
-    console.error('Failed to add phrase:', e);
+    pending.classList.add('fade-out');
+    setTimeout(() => pending.remove(), 350);
+    console.error('[addPhrase] FAILED:', e.message, e);
+    toast('Error: ' + e.message, 'error', 5000);
     return false;
   }
 }
@@ -1175,6 +1363,7 @@ async function loadConfig() {
     if (!cfg) return;
     if (cfg.delete_tap_count) deleteTapCount = cfg.delete_tap_count;
     separateAddTab = !!cfg.separate_add_tab;
+    if (cfg.max_boards) maxBoards = cfg.max_boards;
   } catch (_) {}
 }
 
@@ -1281,6 +1470,17 @@ function connectWS() {
         case 'BoardUpdated':
           applyBoardUpdate(msg.data);
           break;
+        case 'BoardCleared':
+          clearBoardDom(msg.data.board_id);
+          break;
+        case 'BoardCreated':
+          boards.push(msg.data);
+          getOrCreateCanvas(msg.data.id);
+          renderTabs();
+          break;
+        case 'BoardDeleted':
+          handleBoardDeleted(msg.data.board_id);
+          break;
       }
     } catch (_) {}
   });
@@ -1294,6 +1494,22 @@ function connectWS() {
   ws.addEventListener('error', () => ws.close());
 }
 
+
+// ════════════════════════════════════════════════════════
+//  Toast notifications
+// ════════════════════════════════════════════════════════
+function toast(msg, type = 'info', durationMs = 3000) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  const container = document.getElementById('toast-container');
+  container.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('fade-out');
+    setTimeout(() => el.remove(), 350);
+  }, durationMs);
+  return el;
+}
 // ════════════════════════════════════════════════════════
 //  Bootstrap
 // ════════════════════════════════════════════════════════
@@ -1308,5 +1524,7 @@ function connectWS() {
   setInterval(poll, POLL_MS);
 })();
 </script>
+
+<div id="toast-container"></div>
 </body>
 </html>
