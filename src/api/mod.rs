@@ -3,6 +3,7 @@
 pub mod board_routes;
 pub mod box_routes;
 pub mod config_routes;
+mod ws;
 
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -14,6 +15,7 @@ use axum::{
     routing::{delete, get, patch, post},
     Json, Router,
 };
+use axum::routing::any;
 use sqlx::PgPool;
 use tower_http::services::ServeDir;
 use tracing::debug;
@@ -96,47 +98,26 @@ pub struct ApiDoc;
 /// - Everything else (unknown paths, SPA client routes) falls back to `index.html`
 /// - The `/api` prefix is matched first; `ServeDir` never sees `/api/…` paths
 pub fn create_router(state: AppState, enable_docs: bool, static_dir: &str) -> Router {
-    let mut api = Router::new()
+    let api = Router::new()
         .route("/__heartbeat__", get(health))
         .route("/config", get(config_routes::get_config))
-        // boards collection
-        .route(
-            "/boards",
-            get(board_routes::list_boards)
-                .post(board_routes::create_board),
-        )
-        // single board
-        .route(
-            "/boards/{id}",
-            get(board_routes::get_board)
-                .patch(board_routes::update_board)
-                .delete(board_routes::delete_board),
-        )
-        // boxes on a board
-        .route(
-            "/boards/{board_id}/boxes",
-            post(box_routes::create_box).get(box_routes::list_boxes),
-        )
-        // clear all boxes on a board
-        .route(
-            "/boards/{board_id}/boxes/clear",
-            delete(board_routes::clear_board),
-        )
-        // all boxes across all boards
+        // boards management
+        .route("/boards", get(board_routes::list_boards))
+        .route("/boards", post(board_routes::create_board))
+        .route("/boards/{id}", delete(board_routes::delete_board))
+        .route("/boards/{id}", get(board_routes::get_board))
+        .route("/boards/{id}", patch(board_routes::update_board))
+        // boxes endpoints
+        .route("/boards/{board_id}/boxes", post(box_routes::create_box))
+        .route("/boards/{board_id}/boxes", get(box_routes::list_boxes))
+        .route("/boards/{board_id}/boxes/clear", delete(board_routes::clear_board))
         .route("/boxes", get(box_routes::list_all_boxes))
-        // single box
-        .route(
-            "/boxes/{id}",
-            patch(box_routes::update_box).delete(box_routes::delete_box),
-        )
+        .route("/boxes/{id}", patch(box_routes::update_box))
+        .route("/boxes/{id}", delete(box_routes::delete_box))
+        // websocket for live updates
+        .route("/ws", any(ws::ws_handler))
+        // enriching with state
         .with_state(state.clone());
-
-    // let api = if enable_docs {
-    //     debug!("Enabling docs endpoint");
-    //     api.merge(SwaggerUi::new("/docs").url("/api/docs/openapi.json", ApiDoc::openapi()))
-    // } else {
-    //     api
-    // };
 
 
     // ── Static file serving + SPA fallback ─────────────────────────────────
@@ -147,27 +128,27 @@ pub fn create_router(state: AppState, enable_docs: bool, static_dir: &str) -> Ro
     // Paths that don't match any static file are rewritten to /index.html
     // so client-side routing works.
 
-    // let static_dir = static_dir.to_string();
-    // let spa_fallback = axum::routing::get(move || {
-    //     let path = format!("{}/index.html", static_dir);
-    //     async move {
-    //         match tokio::fs::read(path).await {
-    //             Ok(bytes) => axum::response::Response::builder()
-    //                 .header("Content-Type", "text/html; charset=utf-8")
-    //                 .body(axum::body::Body::from(bytes))
-    //                 .unwrap(),
-    //             Err(_) => axum::response::Response::builder()
-    //                 .status(404)
-    //                 .body(axum::body::Body::from("index.html not found"))
-    //                 .unwrap(),
-    //         }
-    //     }
-    // });
+    let static_dir = static_dir.to_string();
+    let spa_fallback = axum::routing::get(move || {
+        let path = format!("{}/index.html", static_dir);
+        async move {
+            match tokio::fs::read(path).await {
+                Ok(bytes) => axum::response::Response::builder()
+                    .header("Content-Type", "text/html; charset=utf-8")
+                    .body(axum::body::Body::from(bytes))
+                    .unwrap(),
+                Err(_) => axum::response::Response::builder()
+                    .status(404)
+                    .body(axum::body::Body::from("index.html not found"))
+                    .unwrap(),
+            }
+        }
+    });
 
     let mut root = Router::new()
-        .nest("/api", api);
-        // .nest_service("/static", ServeDir::new("static"))
-        // .fallback(spa_fallback.clone());
+        .nest("/api", api)
+        .nest_service("/static", ServeDir::new("static"))
+        .fallback(spa_fallback.clone());
 
     if enable_docs {
         debug!("Enabling docs endpoint");
