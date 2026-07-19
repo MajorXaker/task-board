@@ -1,16 +1,17 @@
 name: Electron — Build & Release
 
 # Triggers:
-#   - Every push to main (builds artifacts, no release)
-#   - Every version tag vX.Y.Z (builds + creates a GitHub Release)
-#   - Manual dispatch (useful for testing)
+#   - Push to main OR any branch (so you can test CI on feature branches)
+#   - Version tags vX.Y.Z  → builds + creates a GitHub Release
+#   - Manual dispatch       → always builds, never publishes
 on:
   push:
-    branches: [main]
+    branches: ['**']   # all branches, not just main
     tags:     ['v*']
+  pull_request:        # also run on PRs so CI is visible before merge
   workflow_dispatch:
 
-# Required for creating GitHub Releases and uploading assets
+# Required for creating GitHub Releases and uploading release assets
 permissions:
   contents: write
 
@@ -18,7 +19,7 @@ jobs:
   build:
     name: Build (${{ matrix.os }})
     strategy:
-      fail-fast: false          # let all platforms finish even if one fails
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -48,15 +49,14 @@ jobs:
         working-directory: electron
         run: npm ci
 
-      # ── 4a. Linux — extra deps for AppImage ──────────────────────────────────
+      # ── 4a. Linux — extra deps for AppImage / rpm ─────────────────────────────
       - name: Install Linux packaging tools
         if: matrix.platform == 'linux'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends rpm fakeroot
 
-      # ── 4b. macOS — import signing certificate ────────────────────────────────
-      # Skip if secrets are not configured (open-source / unsigned builds).
+      # ── 4b. macOS — import signing certificate (only when secret is set) ──────
       - name: Import macOS signing certificate
-        if: matrix.platform == 'mac' && env.MAC_CSC_LINK != ''
+        if: matrix.platform == 'mac' && secrets.MAC_CSC_LINK != ''
         env:
           MAC_CSC_LINK:         ${{ secrets.MAC_CSC_LINK }}
           MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
@@ -67,40 +67,58 @@ jobs:
             -P "$MAC_CSC_KEY_PASSWORD" -T /usr/bin/codesign
           security set-keychain-settings -t 3600 -u build.keychain
           security list-keychain -d user -s build.keychain
-          security set-key-partition-list -S apple-tool:,apple: \
-            -k "" build.keychain
+          security set-key-partition-list -S apple-tool:,apple: -k "" build.keychain
 
-      # ── 5. Build Electron app ─────────────────────────────────────────────────
+      # ── 5. Build ──────────────────────────────────────────────────────────────
+      #
+      # Signing env vars are only passed when the corresponding secret exists.
+      # electron-builder treats an empty/unset CSC_LINK as "no signing" and
+      # proceeds with an unsigned build — which is fine for dev/CI testing.
+      #
+      # The critical fix for "Env WIN_CSC_LINK is not correct":
+      #   Don't set WIN_CSC_LINK / CSC_LINK at all when the secrets are empty.
+      #   We do this by using a conditional step approach: signing vars are set
+      #   in a separate prepare step and exported to GITHUB_ENV only when
+      #   the secret is non-empty.
+      - name: Export signing env vars (skip if secrets absent)
+        shell: bash
+        env:
+          _MAC_CSC_LINK:         ${{ secrets.MAC_CSC_LINK }}
+          _MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          _WIN_CSC_LINK:         ${{ secrets.WIN_CSC_LINK }}
+          _WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          _APPLE_ID:             ${{ secrets.APPLE_ID }}
+          _APPLE_APP_PW:         ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          _APPLE_TEAM_ID:        ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          # Only forward a var when its secret is non-empty.
+          # electron-builder must NOT see CSC_LINK / WIN_CSC_LINK set to ""
+          # or a path — it will try to use them and fail.
+          [[ -n "$_MAC_CSC_LINK" ]]         && echo "CSC_LINK=$_MAC_CSC_LINK"                         >> "$GITHUB_ENV" || true
+          [[ -n "$_MAC_CSC_KEY_PASSWORD" ]] && echo "CSC_KEY_PASSWORD=$_MAC_CSC_KEY_PASSWORD"         >> "$GITHUB_ENV" || true
+          [[ -n "$_WIN_CSC_LINK" ]]         && echo "WIN_CSC_LINK=$_WIN_CSC_LINK"                     >> "$GITHUB_ENV" || true
+          [[ -n "$_WIN_CSC_KEY_PASSWORD" ]] && echo "WIN_CSC_KEY_PASSWORD=$_WIN_CSC_KEY_PASSWORD"     >> "$GITHUB_ENV" || true
+          [[ -n "$_APPLE_ID" ]]             && echo "APPLE_ID=$_APPLE_ID"                             >> "$GITHUB_ENV" || true
+          [[ -n "$_APPLE_APP_PW" ]]         && echo "APPLE_APP_SPECIFIC_PASSWORD=$_APPLE_APP_PW"      >> "$GITHUB_ENV" || true
+          [[ -n "$_APPLE_TEAM_ID" ]]        && echo "APPLE_TEAM_ID=$_APPLE_TEAM_ID"                   >> "$GITHUB_ENV" || true
+
       - name: Build — ${{ matrix.platform }}
         working-directory: electron
         shell: bash
         env:
-          GH_TOKEN:             ${{ secrets.GITHUB_TOKEN }}
-          # macOS signing (optional — leave unset for unsigned builds)
-          CSC_LINK:             ${{ secrets.MAC_CSC_LINK }}
-          CSC_KEY_PASSWORD:     ${{ secrets.MAC_CSC_KEY_PASSWORD }}
-          # Windows signing (optional — leave unset for unsigned builds)
-          WIN_CSC_LINK:         ${{ secrets.WIN_CSC_LINK }}
-          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-          # Notarization (macOS, optional)
-          APPLE_ID:             ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID:        ${{ secrets.APPLE_TEAM_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            # Tag push → build and publish to a GitHub Release
             npx electron-builder --${{ matrix.platform }} --publish always
           else
-            # Branch push → build artifacts only, no publish
             npx electron-builder --${{ matrix.platform }} --publish never
           fi
 
-      # ── 6. Upload build artifacts ─────────────────────────────────────────────
+      # ── 6. Upload artifacts ───────────────────────────────────────────────────
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: taskboard-${{ matrix.platform }}
-          # Collect all distributable files; exclude the unpacked folder
           path: |
             electron/dist/*.AppImage
             electron/dist/*.deb
@@ -112,7 +130,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-  # ── Summary job: waits for all platforms ─────────────────────────────────────
+  # ── Summary ───────────────────────────────────────────────────────────────────
   release-summary:
     name: Release summary
     needs: build
