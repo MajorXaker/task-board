@@ -1,2 +1,6 @@
 .env
 target/
+# Electron
+electron/node_modules/
+electron/dist/
+electron/.webpack/
