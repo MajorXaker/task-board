@@ -1,0 +1,123 @@
+name: Electron — Build & Release
+
+# Triggers:
+#   - Every push to main (builds artifacts, no release)
+#   - Every version tag vX.Y.Z (builds + creates a GitHub Release)
+#   - Manual dispatch (useful for testing)
+on:
+  push:
+    branches: [main]
+    tags:     ['v*']
+  workflow_dispatch:
+
+# Required for creating GitHub Releases and uploading assets
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    strategy:
+      fail-fast: false          # let all platforms finish even if one fails
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: macos-latest
+            platform: mac
+          - os: windows-latest
+            platform: win
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Node.js ───────────────────────────────────────────────────────────
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: electron/package-lock.json
+
+      # ── 3. Install Electron dependencies ─────────────────────────────────────
+      - name: Install dependencies
+        working-directory: electron
+        run: npm ci
+
+      # ── 4a. Linux — extra deps for AppImage ──────────────────────────────────
+      - name: Install Linux packaging tools
+        if: matrix.platform == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends rpm fakeroot
+
+      # ── 4b. macOS — import signing certificate ────────────────────────────────
+      # Skip if secrets are not configured (open-source / unsigned builds).
+      - name: Import macOS signing certificate
+        if: matrix.platform == 'mac' && env.MAC_CSC_LINK != ''
+        env:
+          MAC_CSC_LINK:         ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+        run: |
+          echo "$MAC_CSC_LINK" | base64 --decode > /tmp/certificate.p12
+          security create-keychain -p "" build.keychain
+          security import /tmp/certificate.p12 -k build.keychain \
+            -P "$MAC_CSC_KEY_PASSWORD" -T /usr/bin/codesign
+          security set-keychain-settings -t 3600 -u build.keychain
+          security list-keychain -d user -s build.keychain
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "" build.keychain
+
+      # ── 5. Build Electron app ─────────────────────────────────────────────────
+      - name: Build — ${{ matrix.platform }}
+        working-directory: electron
+        shell: bash
+        env:
+          GH_TOKEN:             ${{ secrets.GITHUB_TOKEN }}
+          # macOS signing (optional — leave unset for unsigned builds)
+          CSC_LINK:             ${{ secrets.MAC_CSC_LINK }}
+          CSC_KEY_PASSWORD:     ${{ secrets.MAC_CSC_KEY_PASSWORD }}
+          # Windows signing (optional — leave unset for unsigned builds)
+          WIN_CSC_LINK:         ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          # Notarization (macOS, optional)
+          APPLE_ID:             ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID:        ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            # Tag push → build and publish to a GitHub Release
+            npx electron-builder --${{ matrix.platform }} --publish always
+          else
+            # Branch push → build artifacts only, no publish
+            npx electron-builder --${{ matrix.platform }} --publish never
+          fi
+
+      # ── 6. Upload build artifacts ─────────────────────────────────────────────
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: taskboard-${{ matrix.platform }}
+          # Collect all distributable files; exclude the unpacked folder
+          path: |
+            electron/dist/*.AppImage
+            electron/dist/*.deb
+            electron/dist/*.rpm
+            electron/dist/*.dmg
+            electron/dist/*.zip
+            electron/dist/*.exe
+            electron/dist/latest*.yml
+          if-no-files-found: warn
+          retention-days: 30
+
+  # ── Summary job: waits for all platforms ─────────────────────────────────────
+  release-summary:
+    name: Release summary
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+    steps:
+      - name: Done
+        run: echo "All platform builds finished for ${{ github.ref_name }}"
