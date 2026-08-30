@@ -37,7 +37,7 @@ pub async fn get_all_boxes(pool: &PgPool) -> Result<Vec<PhraseBox>> {
 }
 
 /// Insert a new box. Returns the created record.
-pub async fn create_box(pool: &PgPool, req: &CreateBoxRequest, default_x: f64, default_y: f64) -> Result<PhraseBox> {
+pub async fn create_box(pool: &PgPool, req: &CreateBoxRequest, default_x: f64, default_y: f64, board_id: i32) -> Result<PhraseBox> {
     let x = req.pos_x.unwrap_or(default_x);
     let y = req.pos_y.unwrap_or(default_y);
 
@@ -48,7 +48,7 @@ pub async fn create_box(pool: &PgPool, req: &CreateBoxRequest, default_x: f64, d
         RETURNING id, board_id, text, color_bg, color_text, pos_x, pos_y, z_index, created_at, updated_at
         "#,
     )
-    .bind(req.board_id)
+    .bind(board_id)
     .bind(&req.text)
     .bind(&req.color_bg)
     .bind(&req.color_text)

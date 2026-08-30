@@ -59,6 +59,7 @@ Migrations run automatically on startup.
 | `ENABLE_DOCS` | `true` | Expose Swagger UI at `/api/docs` |
 | `DELETE_TAP_COUNT` | `3` | Taps/clicks to delete a box |
 | `SEPARATE_ADD_TAB` | `false` | Move Add/Manage controls to a dedicated tab (ideal for touch-only screens) |
+| `MAX_BOARDS` | `5` | Maximum number of boards the user can create |
 | `DEFAULT_CANVAS_WIDTH` | `1280` | Canvas width for new-box placement |
 | `DEFAULT_CANVAS_HEIGHT` | `800` | Canvas height for new-box placement |
 | `RUST_LOG` | `info` | Log level |

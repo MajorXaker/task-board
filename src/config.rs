@@ -38,6 +38,7 @@ pub struct ServerConfig {
     pub port: u16,
     /// Whether to expose the Swagger UI at /api/docs.
     pub enable_docs: bool,
+    pub log_level: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,6 +52,8 @@ pub struct AppSettings {
     /// When true, the "Add / Manage" controls move to a dedicated tab
     /// instead of living in the top toolbar.
     pub separate_add_tab: bool,
+    /// Maximum number of boards the user can create.
+    pub max_boards: u8,
 }
 
 impl Default for AppSettings {
@@ -60,6 +63,7 @@ impl Default for AppSettings {
             default_canvas_height: 800.0,
             delete_tap_count: 3,
             separate_add_tab: false,
+            max_boards: 5,
         }
     }
 }
@@ -78,6 +82,7 @@ pub fn load_config() -> Result<AppConfig> {
         host: env_or("SERVER_HOST", "0.0.0.0"),
         port: env_or("SERVER_PORT", "8080").parse::<u16>().context("SERVER_PORT must be a valid port")?,
         enable_docs: env_or("ENABLE_DOCS", "true").to_lowercase() != "false",
+        log_level: env_or("LOG_LEVEL", "info"),
     };
 
     let app = AppSettings {
@@ -91,6 +96,7 @@ pub fn load_config() -> Result<AppConfig> {
             .parse::<u8>()
             .context("DELETE_TAP_COUNT must be 1-255")?,
         separate_add_tab: env_or("SEPARATE_ADD_TAB", "false").to_lowercase() == "true",
+        max_boards: env_or("MAX_BOARDS", "5").parse::<u8>().context("MAX_BOARDS must be 1-255")?,
     };
 
     Ok(AppConfig { database: db, server, app })

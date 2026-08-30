@@ -25,7 +25,6 @@ pub struct PhraseBox {
 /// Payload for creating a new box.
 #[derive(Debug, Deserialize, ToSchema)]
 pub struct CreateBoxRequest {
-    pub board_id: i32,
     pub text: String,
     pub color_bg: String,
     pub color_text: String,
