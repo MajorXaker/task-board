@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simple launcher icon: dark rounded square with 2x2 task-board cells,
+     two of them "done" (accent blue). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#1A1F26"
+        android:pathData="M24,4 h60 a20,20 0 0 1 20,20 v60 a20,20 0 0 1 -20,20 h-60 a20,20 0 0 1 -20,-20 v-60 a20,20 0 0 1 20,-20 z" />
+    <path
+        android:fillColor="#3B82F6"
+        android:pathData="M32,32 h16 v16 h-16 z M60,60 h16 v16 h-16 z" />
+    <path
+        android:fillColor="#4B5563"
+        android:pathData="M60,32 h16 v16 h-16 z M32,60 h16 v16 h-16 z" />
+</vector>

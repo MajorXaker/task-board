@@ -1,0 +1,71 @@
+name: Android — Build APK
+
+# Builds the slim Android WebView client from android/ and packages a
+# signed, installable release APK:
+#   - Push (any branch / main) → APK uploaded as a workflow artifact
+#   - Version tag vX.Y.Z      → APK attached to the GitHub Release
+#   - PRs                     → build validation only
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          build-root-directory: android
+
+      - name: Build release APK
+        working-directory: android
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          # vX.Y.Z on tags, branch name (or short sha) otherwise — shown in
+          # Android Settings → Apps → TaskBoard.
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION_NAME="${VERSION#v}"
+          else
+            VERSION_NAME="$(git describe --tags --always)"
+          fi
+          ./gradlew assembleRelease --no-daemon -PversionName="$VERSION_NAME"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: taskboard-android-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+
+      - name: Attach APK to GitHub Release (version tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          NAME="taskboard-android-${GITHUB_REF_NAME#v}.apk"
+          cp "$APK" "$NAME"
+          # The Electron workflow may already have created the release —
+          # create only if missing, then (re)upload the APK.
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            || gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" "$NAME" --repo "$GITHUB_REPOSITORY" --clobber

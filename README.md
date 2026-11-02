@@ -43,6 +43,30 @@ docker compose up --build
 # Swagger UI at  http://localhost:8080/api/docs
 ```
 
+## Android client
+
+A slim Android app (`android/`) that wraps this same web UI in a WebView —
+one config item (the server URL), built and signed by CI.
+
+- **Build:** CI builds a signed release APK on every push (artifact) and
+  attaches `taskboard-android-X.Y.Z.apk` to GitHub Releases on `vX.Y.Z` tags.
+  First launch asks for the server URL (e.g. `http://192.168.1.50:8080`),
+  stored on the device.
+- **Offline:** if the server is unreachable, the app shows a local error page
+  with *Try again* / *Change server URL* actions instead of a raw WebView error.
+- **Plain HTTP** is allowed (`usesCleartextTraffic`) since it targets LAN use.
+- **Signing:** a PKCS12 keystore is committed (`android/keystore/`) so CI APKs
+  can update over each other. Intentional for a LAN app — do not reuse it for
+  Play Store distribution.
+
+Local build (needs JDK 17 + Android SDK):
+
+```bash
+cd android
+./gradlew assembleRelease
+# APK: app/build/outputs/apk/release/app-release.apk
+```
+
 ## Local development
 
 ### Prerequisites
