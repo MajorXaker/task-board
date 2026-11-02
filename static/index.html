@@ -632,6 +632,7 @@ let separateAddTab = false;  // overridden from /api/config
 
 const tapState = {};        // per-box tap tracking
 let knownBoxIds = new Set();
+const draggingBoxIds = new Set();  // boxes currently held by the user — poll/WS must not move them
 
 // ════════════════════════════════════════════════════════
 //  Theme
@@ -901,6 +902,10 @@ function paletteIdxFromColors(bg, text) {
 function renderBox(box) {
   const existing = document.getElementById('box-' + box.id);
   if (existing) {
+    // A box the user is currently dragging: ignore position/appearance updates from
+    // polling and WebSocket — the in-flight drag wins. Deletion is still applied
+    // (removeBoxFromDom works independently of this path).
+    if (draggingBoxIds.has(box.id)) return;
     existing.style.left = box.pos_x + 'px';
     existing.style.top  = box.pos_y + 'px';
     existing.style.zIndex = box.z_index;
@@ -1004,6 +1009,7 @@ function makeDraggable(card, boxId) {
     origX = parseFloat(card.style.left) || 0;
     origY = parseFloat(card.style.top)  || 0;
     moved = false;
+    draggingBoxIds.add(boxId);
     card.style.zIndex = ++zCounter;
     card.classList.add('dragging');
     document.addEventListener('mousemove', onMove);
@@ -1032,12 +1038,13 @@ function makeDraggable(card, boxId) {
   }
 
   function onUp() {
+    draggingBoxIds.delete(boxId);
     card.classList.remove('dragging');
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup',   onUp);
     document.removeEventListener('touchmove', onMove);
     document.removeEventListener('touchend',  onUp);
-    if (moved) {
+    if (moved && card.isConnected) {
       const x = parseFloat(card.style.left);
       const y = parseFloat(card.style.top);
       apiFetch(`/boxes/${boxId}`, {
