@@ -89,14 +89,14 @@ pub fn create_router(state: AppState, enable_docs: bool, static_dir: &str) -> Ro
         .route("/config", get(config_routes::get_config))
         // boards
         .route("/boards", get(board_routes::list_boards))
-        .route("/boards/{id}", get(board_routes::get_board))
-        .route("/boards/{id}", patch(board_routes::update_board))
+        .route("/boards/:id", get(board_routes::get_board))
+        .route("/boards/:id", patch(board_routes::update_board))
         // boxes
-        .route("/boards/{board_id}/boxes", get(box_routes::list_boxes))
-        .route("/boards/{board_id}/boxes", post(box_routes::create_box))
+        .route("/boards/:board_id/boxes", get(box_routes::list_boxes))
+        .route("/boards/:board_id/boxes", post(box_routes::create_box))
         .route("/boxes", get(box_routes::list_all_boxes))
-        .route("/boxes/{id}", patch(box_routes::update_box))
-        .route("/boxes/{id}", delete(box_routes::delete_box))
+        .route("/boxes/:id", patch(box_routes::update_box))
+        .route("/boxes/:id", delete(box_routes::delete_box))
         // websocket
         .route("/ws", get(ws::ws_handler))
         .with_state(state.clone());
