@@ -1,5 +1,6 @@
 # ── Stage 1: builder ──────────────────────────────────────────────────────────
-FROM rust:1.82-slim AS builder
+# rust:1-slim = latest stable (>= 1.85, required for edition = "2024" in Cargo.toml)
+FROM rust:1-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
