@@ -1,0 +1,54 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Load release signing config if present (see keystore.properties).
+def keystorePropsFile = rootProject.file("keystore.properties")
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { stream -> keystoreProps.load(stream) }
+}
+
+android {
+    namespace 'com.majorxaker.taskboard'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.majorxaker.taskboard"
+        minSdk 24          // Android 7.0+ — enough for a WebView client
+        targetSdk 34
+        versionCode 1
+        // CI passes -PversionName=vX.Y.Z (git describe), local builds fall back.
+        versionName project.hasProperty('versionName') ? project.property('versionName') : '0.1.0'
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePropsFile.exists()) {
+                storeFile rootProject.file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+                storeType 'PKCS12'
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            if (keystorePropsFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+}
+
+// Slim app: zero external dependencies — android.webkit only.
+dependencies {}

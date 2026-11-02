@@ -4,3 +4,10 @@ target/
 electron/node_modules/
 electron/dist/
 electron/.webpack/
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.iml
+.idea/

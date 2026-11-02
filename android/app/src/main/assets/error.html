@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Can't reach TaskBoard</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    margin: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #101418;
+    color: #e6e9ef;
+  }
+  .wrap {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card { max-width: 420px; text-align: center; }
+  .icon { font-size: 56px; margin-bottom: 12px; }
+  h1 { font-size: 22px; margin: 0 0 8px; }
+  p { font-size: 15px; line-height: 1.5; color: #9aa3b2; margin: 0 0 24px; }
+  .btns { display: flex; flex-direction: column; gap: 12px; }
+  button {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+  }
+  .primary { background: #3b82f6; color: #fff; }
+  .ghost { background: transparent; color: #9aa3b2; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="icon">📡</div>
+      <h1>Can't reach TaskBoard</h1>
+      <p id="msg">The server is unreachable. Check that it is running and that
+        your device is on the same Wi-Fi network.</p>
+      <div class="btns">
+        <button class="primary" onclick="act('retry')">Try again</button>
+        <button class="ghost" onclick="act('settings')">Change server URL</button>
+      </div>
+    </div>
+  </div>
+<script>
+  function act(name) {
+    // Called inside the Android app — Talk to the JS bridge.
+    if (window.TaskBoard && window.TaskBoard[name]) {
+      window.TaskBoard[name]();
+    }
+  }
+</script>
+</body>
+</html>
