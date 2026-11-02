@@ -16,6 +16,27 @@ Collaborative drag-and-drop day-task tracker. Run it on a touch tablet for quick
 
 ## Quick start (Docker Compose)
 
+Two ways to run it with Docker Compose:
+
+### Option A — prebuilt image from GHCR (no build, no toolchain)
+
+```bash
+docker compose -f docker-compose.image.yml up -d
+# App available at http://localhost:8080
+# Swagger UI at  http://localhost:8080/api/docs
+```
+
+The image is published automatically by CI to
+[ghcr.io/majorxaker/task-board](https://github.com/MajorXaker/task-board/pkgs/container/task-board)
+on every push to `main` and every `vX.Y.Z` tag. Tags: `latest`, `X.Y.Z`,
+`X.Y`, and `sha-<commit>`.
+
+> The first release of the package is private by default. To pull without
+> logging in, set it public once: Repo → Packages → task-board → Package
+> settings → Change visibility → Public.
+
+### Option B — build from source
+
 ```bash
 docker compose up --build
 # App available at http://localhost:8080

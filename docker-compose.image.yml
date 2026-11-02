@@ -1,0 +1,57 @@
+# Run TaskBoard from the prebuilt GHCR package — no local build, no Rust toolchain.
+#
+# The image is built and published by the "Docker — Build & Publish to GHCR" workflow:
+#   ghcr.io/majorxaker/task-board
+#
+# Usage:
+#   docker compose -f docker-compose.image.yml up -d
+#
+# First run may fail with 401 until the package visibility is set:
+#   Repo → Packages → task-board → Package settings → Change visibility to Public
+#   (or `docker login ghcr.io` if it stays private).
+#
+# Need a specific version? Pin it, e.g.:
+#   image: ghcr.io/majorxaker/task-board:1.2.3        (version tags)
+#   image: ghcr.io/majorxaker/task-board:sha-abc1234  (commit SHA tags)
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: taskboard
+      POSTGRES_PASSWORD: taskboard
+      POSTGRES_DB: taskboard
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskboard"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    image: ghcr.io/majorxaker/task-board:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: taskboard
+      DB_PASSWORD: taskboard
+      DB_NAME: taskboard
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8080
+      ENABLE_DOCS: "true"        # set to "false" to hide Swagger UI
+      DELETE_TAP_COUNT: "3"      # taps/clicks required to delete a box
+      SEPARATE_ADD_TAB: "false"       # set to "true" for dedicated manage tab
+      DEFAULT_CANVAS_WIDTH: "1280"
+      DEFAULT_CANVAS_HEIGHT: "800"
+      RUST_LOG: "info"
+
+volumes:
+  pgdata:
