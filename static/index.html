@@ -516,7 +516,7 @@ body {
   <button class="close-help" id="close-help">✕</button>
   <h3>How to use TaskBoard</h3>
   <ul>
-    <li id="help-add-hint"><strong>Add a box:</strong> <span id="help-add-text"></span></li>
+    <li id="help-add-hint"><strong>Add a box:</strong> <span id="help-add-text"></span> New boxes appear at the center of the screen — drag them wherever they belong.</li>
     <li><strong>Move a box:</strong> Drag it anywhere on the canvas. Position is saved automatically.</li>
     <li id="help-delete-hint"><strong>Delete a box:</strong> <span id="help-tap-count"></span> — or use the ✕ button that appears on hover.</li>
     <li><strong>Switch boards:</strong> Tap a board tab at the top.</li>
@@ -552,20 +552,18 @@ body {
 const API = '/api';
 const POLL_MS = 1000;
 
-// Dark-theme palette for box colors.
-// Each swatch shows its bg; text is for the card's text color.
-const PALETTES = {
-  dark: [
-    { bg: '#422006', text: '#fde68a', label: 'Yellow'  },
-    { bg: '#052e16', text: '#86efac', label: 'Green'   },
-    { bg: '#0f1e40', text: '#93c5fd', label: 'Blue'    },
-    { bg: '#3d0a22', text: '#f9a8d4', label: 'Pink'    },
-    { bg: '#3d1604', text: '#fdba74', label: 'Orange'  },
-    { bg: '#200d40', text: '#c4b5fd', label: 'Purple'  },
-    { bg: '#042420', text: '#5eead4', label: 'Teal'    },
-    { bg: '#1e2530', text: '#cbd5e1', label: 'Slate'   },
-  ],
-};
+// Dark-theme palette used when the server does not send one.
+// The real palette comes from /api/config (BOX_COLOR_* env vars) — see loadConfig.
+const DEFAULT_BOX_COLORS = [
+  { bg: '#422006', text: '#fde68a', label: 'Yellow'  },
+  { bg: '#052e16', text: '#86efac', label: 'Green'   },
+  { bg: '#0f1e40', text: '#93c5fd', label: 'Blue'    },
+  { bg: '#3d0a22', text: '#f9a8d4', label: 'Pink'    },
+  { bg: '#3d1604', text: '#fdba74', label: 'Orange'  },
+  { bg: '#200d40', text: '#c4b5fd', label: 'Purple'  },
+  { bg: '#042420', text: '#5eead4', label: 'Teal'    },
+  { bg: '#1e2530', text: '#cbd5e1', label: 'Slate'   },
+];
 
 // ════════════════════════════════════════════════════════
 //  State
@@ -573,7 +571,8 @@ const PALETTES = {
 let boards         = [];
 let activeBoardId  = null;   // null means Manage panel is active
 let lastBoardId    = null;   // last board viewed — Add in Manage mode targets it
-let selectedPaletteIdx = 2;  // Blue default — more visible on dark bg
+let boxColors      = DEFAULT_BOX_COLORS;  // replaced by server config when present
+let selectedColor  = null;   // {bg, text} — may be a legacy color not in boxColors
 let zCounter       = 10;
 let deleteTapCount = 3;
 let separateAddTab = false;  // overridden from /api/config
@@ -585,23 +584,31 @@ const draggingBoxIds = new Set();  // boxes currently held by the user — poll/
 // ════════════════════════════════════════════════════════
 //  Palette
 // ════════════════════════════════════════════════════════
-function getPalette(idx) { return PALETTES.dark[idx]; }
+function colorsEqual(a, b) { return !!a && !!b && a.bg === b.bg && a.text === b.text; }
 
 // ════════════════════════════════════════════════════════
 //  Swatches (rendered into both toolbar and manage panel)
 // ════════════════════════════════════════════════════════
 function buildSwatches(container, onSelect) {
   container.innerHTML = '';
-  PALETTES.dark.forEach((p, i) => {
+  const colors = boxColors.slice();
+  // A color picked from an existing box that is not part of the current
+  // palette (legacy color) gets its own extra swatch, so the selection
+  // stays visible and usable.
+  if (selectedColor && !boxColors.some(c => colorsEqual(c, selectedColor))) {
+    colors.push({ ...selectedColor, label: 'Legacy color' });
+  }
+  colors.forEach(p => {
+    const active = colorsEqual(p, selectedColor);
     const s = document.createElement('button');
-    s.className = 'swatch' + (i === selectedPaletteIdx ? ' active' : '');
+    s.className = 'swatch' + (active ? ' active' : '');
     s.title = p.label;
     s.style.background = p.bg;
-    s.style.border = `2px solid ${i === selectedPaletteIdx ? 'var(--color-text)' : 'transparent'}`;
+    s.style.border = `2px solid ${active ? 'var(--color-text)' : 'transparent'}`;
     s.addEventListener('click', () => {
-      selectedPaletteIdx = i;
+      selectedColor = { bg: p.bg, text: p.text };
       renderAllSwatches();
-      onSelect && onSelect(i);
+      onSelect && onSelect(p);
     });
     container.appendChild(s);
   });
@@ -807,11 +814,6 @@ function renderManageBoardList() {
 // ════════════════════════════════════════════════════════
 //  Phrase cards
 // ════════════════════════════════════════════════════════
-function paletteIdxFromColors(bg, text) {
-  const idx = PALETTES.dark.findIndex(p => p.bg === bg && p.text === text);
-  return idx >= 0 ? idx : 0;
-}
-
 function renderBox(box) {
   const existing = document.getElementById('box-' + box.id);
   if (existing) {
@@ -824,6 +826,8 @@ function renderBox(box) {
     existing.style.zIndex = box.z_index;
     existing.style.background = box.color_bg;
     existing.style.color = box.color_text;
+    existing.dataset.colorBg = box.color_bg;
+    existing.dataset.colorText = box.color_text;
     existing.querySelector('.phrase-text').textContent = box.text;
     const curBoard = parseInt(existing.dataset.boardId);
     if (curBoard !== box.board_id) {
@@ -836,14 +840,14 @@ function renderBox(box) {
   }
 
   const canvas = getOrCreateCanvas(box.board_id);
-  const pi = paletteIdxFromColors(box.color_bg, box.color_text);
 
   const card = document.createElement('div');
   card.className = 'phrase-card';
   card.id = 'box-' + box.id;
   card.dataset.boxId   = box.id;
   card.dataset.boardId = box.board_id;
-  card.dataset.paletteIdx = pi;
+  card.dataset.colorBg = box.color_bg;
+  card.dataset.colorText = box.color_text;
   card.style.left = box.pos_x + 'px';
   card.style.top  = box.pos_y + 'px';
   card.style.background = box.color_bg;
@@ -904,11 +908,14 @@ function makeMultiTappable(card, boxId) {
     if (e.target.classList.contains('delete-btn')) return;
 
     // Single click picks up this box's color: the palette selector switches
-    // to it, so the next box you create matches this one.
-    const pi = parseInt(card.dataset.paletteIdx);
-    if (!isNaN(pi) && pi !== selectedPaletteIdx) {
-      selectedPaletteIdx = pi;
-      renderAllSwatches();
+    // to it, so the next box you create matches this one. Works for legacy
+    // colors that are no longer in the configured palette too.
+    if (card.dataset.colorBg && card.dataset.colorText) {
+      const c = { bg: card.dataset.colorBg, text: card.dataset.colorText };
+      if (!colorsEqual(selectedColor, c)) {
+        selectedColor = c;
+        renderAllSwatches();
+      }
     }
 
     if (!tapState[boxId]) tapState[boxId] = { count: 0, timer: null };
@@ -994,21 +1001,57 @@ function makeDraggable(card, boxId) {
 // ════════════════════════════════════════════════════════
 //  Add phrase (shared logic)
 // ════════════════════════════════════════════════════════
+
+// Measures the on-screen size a card with this text will have, by probing
+// a hidden clone with identical markup (works even when the target board
+// canvas is not currently visible, e.g. adding from the Manage tab).
+function measureCardSize(text) {
+  const probe = document.createElement('div');
+  probe.className = 'phrase-card';
+  probe.style.cssText = 'position:absolute;visibility:hidden;left:-9999px;top:0;pointer-events:none;';
+  const t = document.createElement('span');
+  t.className = 'phrase-text';
+  t.textContent = text;
+  const d = document.createElement('button');
+  d.className = 'delete-btn';
+  d.textContent = '✕';
+  probe.appendChild(t);
+  probe.appendChild(d);
+  document.body.appendChild(probe);
+  const w = probe.offsetWidth, h = probe.offsetHeight;
+  probe.remove();
+  return { w, h };
+}
+
+// Position for a new box so that the box's CENTER lands at the center of
+// the visible board area (accounting for current scroll).
+function centeredBoxPos(text) {
+  const area = document.getElementById('board-area');
+  const { w, h } = measureCardSize(text);
+  return {
+    x: Math.max(0, Math.round(area.scrollLeft + (area.clientWidth - w) / 2)),
+    y: Math.max(0, Math.round(area.scrollTop  + (area.clientHeight - h) / 2)),
+  };
+}
+
 async function addPhrase(text, targetBoardId) {
   text = (text || '').trim();
   if (!text) return false;
   targetBoardId = parseInt(targetBoardId);
   if (!targetBoardId || isNaN(targetBoardId)) return false;
 
-  const pal = getPalette(selectedPaletteIdx);
+  const color = selectedColor || boxColors[0];
+  const pos = centeredBoxPos(text);
   try {
     const box = await apiFetch(`/boards/${targetBoardId}/boxes`, {
       method: 'POST',
       body: JSON.stringify({
         board_id:   targetBoardId,
         text,
-        color_bg:   pal.bg,
-        color_text: pal.text,
+        color_bg:   color.bg,
+        color_text: color.text,
+        pos_x:      pos.x,
+        pos_y:      pos.y,
       }),
     });
     renderBox(box);
@@ -1115,6 +1158,11 @@ async function loadConfig() {
     if (!cfg) return;
     if (cfg.delete_tap_count) deleteTapCount = cfg.delete_tap_count;
     separateAddTab = !!cfg.separate_add_tab;
+    // Palette from the server (BOX_COLOR_* env vars); falls back to the
+    // built-in dark palette when absent or empty.
+    if (Array.isArray(cfg.box_colors) && cfg.box_colors.length) {
+      boxColors = cfg.box_colors;
+    }
   } catch (_) {}
 }
 
@@ -1240,6 +1288,8 @@ function connectWS() {
 // ════════════════════════════════════════════════════════
 (async () => {
   await loadConfig();
+  // Default selection: blue if available, else the first color.
+  selectedColor = boxColors[2] || boxColors[0];
   applyUiMode();
   renderAllSwatches();
   updateHelpText();

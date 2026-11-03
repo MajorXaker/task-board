@@ -17,6 +17,8 @@ pub struct ClientConfig {
     /// When true, the frontend should show a dedicated "Manage" tab for
     /// adding boxes and editing boards instead of the toolbar controls.
     pub separate_add_tab: bool,
+    /// Colors available for new boxes (from `BOX_COLOR_*` env vars).
+    pub box_colors: Vec<crate::config::BoxColor>,
 }
 
 /// `GET /api/config` — return client-relevant runtime settings.
@@ -31,5 +33,6 @@ pub async fn get_config(State(state): State<AppState>) -> impl IntoResponse {
         default_canvas_width: state.app_settings.default_canvas_width,
         default_canvas_height: state.app_settings.default_canvas_height,
         separate_add_tab: state.app_settings.separate_add_tab,
+        box_colors: state.app_settings.box_colors.clone(),
     })
 }
