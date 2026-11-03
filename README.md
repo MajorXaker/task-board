@@ -135,12 +135,13 @@ WebSocket messages are JSON with `{ "event": "BoxCreated"|"BoxUpdated"|"BoxDelet
 ## Frontend features
 
 - **5 boards** — switchable via top tab bar, each with configurable title and accent color
-- **8 color palettes** for boxes — light & dark variants
+- **8 color palettes** for boxes — click a box to pick up its color for the next one
+- **Add to current tab** — the toolbar Add button always targets the board tab you are on
 - **Drag & drop** — touch and mouse, boxes scroll the canvas if moved out of bounds
 - **Multi-tap delete** — configurable via `DELETE_TAP_COUNT` env var (default triple-tap)
 - **Collaborative** — WebSocket push + 1 s polling fallback
 - **Help panel** — instructions accessible via the `?` button in the toolbar
-- **Dark / light theme** toggle
+- **Dark theme** (only)
 - **Responsive** — works on small touch screens and wide desktop monitors
 
 ---
