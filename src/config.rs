@@ -3,6 +3,18 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::env;
+use utoipa::ToSchema;
+
+/// One selectable box color: a background hex value plus a readable text hex value.
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+pub struct BoxColor {
+    /// Card background, `#rrggbb`.
+    pub bg: String,
+    /// Card text color, `#rrggbb`.
+    pub text: String,
+    /// Human-readable label shown as the swatch tooltip.
+    pub label: String,
+}
 
 /// Top-level application configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,6 +63,10 @@ pub struct AppSettings {
     /// When true, the "Add / Manage" controls move to a dedicated tab
     /// instead of living in the top toolbar.
     pub separate_add_tab: bool,
+    /// Colors offered for new boxes (`BOX_COLOR_*` env vars; built-in
+    /// dark palette when none are set). Boxes already created keep their
+    /// stored colors regardless of this list.
+    pub box_colors: Vec<BoxColor>,
 }
 
 impl Default for AppSettings {
@@ -60,8 +76,54 @@ impl Default for AppSettings {
             default_canvas_height: 800.0,
             delete_tap_count: 3,
             separate_add_tab: false,
+            box_colors: default_box_colors(),
         }
     }
+}
+
+/// Built-in dark-theme palette (8 colors).
+fn default_box_colors() -> Vec<BoxColor> {
+    vec![
+        BoxColor { bg: "#422006".into(), text: "#fde68a".into(), label: "Yellow".into()  },
+        BoxColor { bg: "#052e16".into(), text: "#86efac".into(), label: "Green".into()   },
+        BoxColor { bg: "#0f1e40".into(), text: "#93c5fd".into(), label: "Blue".into()    },
+        BoxColor { bg: "#3d0a22".into(), text: "#f9a8d4".into(), label: "Pink".into()    },
+        BoxColor { bg: "#3d1604".into(), text: "#fdba74".into(), label: "Orange".into()  },
+        BoxColor { bg: "#200d40".into(), text: "#c4b5fd".into(), label: "Purple".into()  },
+        BoxColor { bg: "#042420".into(), text: "#5eead4".into(), label: "Teal".into()    },
+        BoxColor { bg: "#1e2530".into(), text: "#cbd5e1".into(), label: "Slate".into()   },
+    ]
+}
+
+/// Read `BOX_COLOR_1` … `BOX_COLOR_32` from the environment.
+///
+/// Each entry is `"#rrggbb,#rrggbb"` (background, text). Indices with a
+/// missing variable are skipped; invalid entries are skipped with a warning.
+/// Returns `None` when no `BOX_COLOR_*` variables are set at all (use defaults).
+fn load_box_colors_from_env() -> Option<Vec<BoxColor>> {
+    let mut colors = Vec::new();
+    for i in 1..=32 {
+        let raw = match env::var(format!("BOX_COLOR_{i}")) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let parts: Vec<&str> = raw.split(',').map(|p| p.trim()).collect();
+        if parts.len() != 2 || !is_hex_color(parts[0]) || !is_hex_color(parts[1]) {
+            tracing::warn!(key = i, value = %raw, "Invalid BOX_COLOR_ entry, expected '#rrggbb,#rrggbb' — skipping");
+            continue;
+        }
+        colors.push(BoxColor {
+            bg: parts[0].to_string(),
+            text: parts[1].to_string(),
+            label: format!("Color {i}"),
+        });
+    }
+    if colors.is_empty() { None } else { Some(colors) }
+}
+
+/// `#rrggbb` check.
+fn is_hex_color(s: &str) -> bool {
+    s.len() == 7 && s.starts_with('#') && s[1..].chars().all(|c| c.is_ascii_hexdigit())
 }
 
 /// Load configuration from environment variables with sensible defaults.
@@ -91,6 +153,7 @@ pub fn load_config() -> Result<AppConfig> {
             .parse::<u8>()
             .context("DELETE_TAP_COUNT must be 1-255")?,
         separate_add_tab: env_or("SEPARATE_ADD_TAB", "false").to_lowercase() == "true",
+        box_colors: load_box_colors_from_env().unwrap_or_else(default_box_colors),
     };
 
     Ok(AppConfig { database: db, server, app })
