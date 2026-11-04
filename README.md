@@ -67,6 +67,29 @@ cd android
 # APK: app/build/outputs/apk/release/app-release.apk
 ```
 
+## Linux client
+
+A lite Linux app (`linux/`) that wraps this same web UI in a WebKitGTK
+window — one config item (the server URL), built by CI on Arch Linux x64
+(`archlinux:latest` container, so the binary matches a current Arch system).
+
+- **Build:** CI builds a release tarball on every push (artifact) and
+  attaches `taskboard-linux-x64-X.Y.Z.tar.gz` to GitHub Releases on `vX.Y.Z`
+  tags. First launch asks for the server URL (e.g. `http://192.168.1.50:8080`)
+  and remembers it in `~/.config/taskboard/url`.
+- **Config priority:** `--url http://host:port` argument, `TASKBOARD_URL`
+  environment variable, config file.
+- **Runtime requirements:** webkit2gtk-4.1 and gtk3
+  (Arch: `sudo pacman -S webkit2gtk-4.1 gtk3`).
+- **Plain HTTP** is allowed — it targets LAN use.
+
+Local build (needs Rust + webkit2gtk-4.1 + gtk3 dev packages):
+
+```bash
+cargo build --release --manifest-path linux/Cargo.toml
+# Binary: linux/target/release/taskboard
+```
+
 ## Local development
 
 ### Prerequisites

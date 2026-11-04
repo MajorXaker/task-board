@@ -47,3 +47,37 @@ pub async fn update_board(pool: &PgPool, id: i32, req: &UpdateBoardRequest) -> R
 
     Ok(row)
 }
+
+/// Number of boards (used to enforce the minimum of one board).
+pub async fn count_boards(pool: &PgPool) -> Result<i64> {
+    sqlx::query_scalar("SELECT COUNT(*) FROM boards")
+        .fetch_one(pool)
+        .await
+        .context("Failed to count boards")
+}
+
+/// Number of boxes on a board (boards with boxes cannot be deleted).
+pub async fn count_boxes_for_board(pool: &PgPool, board_id: i32) -> Result<i64> {
+    sqlx::query_scalar("SELECT COUNT(*) FROM boxes WHERE board_id = $1")
+        .bind(board_id)
+        .fetch_one(pool)
+        .await
+        .context("Failed to count boxes for board")
+}
+
+/// Delete a board. Returns the deleted board, or `None` if it did not exist.
+pub async fn delete_board(pool: &PgPool, id: i32) -> Result<Option<Board>> {
+    let row = sqlx::query_as::<_, Board>(
+        r#"
+        DELETE FROM boards
+        WHERE id = $1
+        RETURNING id, slot, title, color, created_at, updated_at
+        "#,
+    )
+    .bind(id)
+    .fetch_optional(pool)
+    .await
+    .context("Failed to delete board")?;
+
+    Ok(row)
+}

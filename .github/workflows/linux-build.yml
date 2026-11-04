@@ -1,0 +1,64 @@
+name: Linux — Build client
+
+# Builds the lite Linux client (linux/) — a WebKitGTK wrapper around the
+# web UI — natively on Arch Linux x64:
+#   - Push (any branch) → tar.gz uploaded as a workflow artifact
+#   - Version tag vX.Y.Z → tar.gz attached to the GitHub Release
+#
+# Runtime requirement on the target machine: webkit2gtk-4.1 and gtk3
+# (Arch: pacman -S webkit2gtk-4.1 gtk3).
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Linux client (Arch x64)
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+
+    steps:
+      - name: Install build dependencies
+        run: |
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed git nodejs github-cli rust webkit2gtk-4.1 gtk3
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build release binary
+        run: cargo build --release --manifest-path linux/Cargo.toml
+
+      - name: Package
+        run: |
+          VERSION="$(git describe --tags --always)"
+          mkdir -p dist
+          cp linux/target/release/taskboard dist/taskboard
+          cp linux/taskboard.desktop dist/taskboard.desktop
+          tar czf "taskboard-linux-x64-${VERSION#v}.tar.gz" -C dist taskboard taskboard.desktop
+          echo "ASSET=taskboard-linux-x64-${VERSION#v}.tar.gz" >> "$GITHUB_ENV"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: taskboard-linux-x64
+          path: ${{ env.ASSET }}
+          if-no-files-found: error
+
+      - name: Attach tarball to GitHub Release (version tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The Electron/Android workflows may already have created the
+          # release — create only if missing, then (re)upload the tarball.
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            || gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" "$ASSET" --repo "$GITHUB_REPOSITORY" --clobber

@@ -11,3 +11,5 @@ android/app/build/
 android/local.properties
 *.iml
 .idea/
+# Linux client
+linux/target/

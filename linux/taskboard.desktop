@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=TaskBoard
+GenericName=TaskBoard client
+Comment=Lite TaskBoard client — the web UI in a WebKitGTK window
+Exec=/usr/bin/taskboard
+Terminal=false
+Categories=Utility;ProjectManagement;
+Icon=taskboard
+Keywords=task;board;kanban;
+StartupWMClass=taskboard

@@ -77,3 +77,76 @@ pub async fn update_board(
         }
     }
 }
+
+/// `DELETE /api/boards/:id` — delete a board.
+///
+/// Rules: the board must exist, must not contain any boxes, and must not be
+/// the last remaining board.
+#[utoipa::path(
+    delete,
+    path = "/api/boards/{id}",
+    responses(
+        (status = 204, description = "Board deleted"),
+        (status = 400, description = "Cannot delete the last remaining board"),
+        (status = 404, description = "Not found"),
+        (status = 409, description = "Board still has boxes"),
+    )
+)]
+pub async fn delete_board(
+    State(state): State<AppState>,
+    Path(id): Path<i32>,
+) -> impl IntoResponse {
+    // Board must exist.
+    match db::get_board(&state.db_pool, id).await {
+        Ok(Some(_)) => {}
+        Ok(None) => return StatusCode::NOT_FOUND.into_response(),
+        Err(e) => {
+            warn!(error = %e, id, "Failed to get board");
+            return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
+        }
+    }
+
+    // Boards with boxes cannot be deleted.
+    match db::count_boxes_for_board(&state.db_pool, id).await {
+        Ok(n) if n > 0 => {
+            return (
+                StatusCode::CONFLICT,
+                "Board still has boxes — move or delete them first".to_string(),
+            )
+                .into_response();
+        }
+        Ok(_) => {}
+        Err(e) => {
+            warn!(error = %e, id, "Failed to count boxes for board");
+            return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
+        }
+    }
+
+    // At least one board must remain.
+    match db::count_boards(&state.db_pool).await {
+        Ok(n) if n <= 1 => {
+            return (
+                StatusCode::BAD_REQUEST,
+                "Cannot delete the last remaining board".to_string(),
+            )
+                .into_response();
+        }
+        Ok(_) => {}
+        Err(e) => {
+            warn!(error = %e, "Failed to count boards");
+            return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response();
+        }
+    }
+
+    match db::delete_board(&state.db_pool, id).await {
+        Ok(Some(_)) => {
+            let _ = state.tx.send(StateChange::BoardDeleted { id });
+            StatusCode::NO_CONTENT.into_response()
+        }
+        Ok(None) => StatusCode::NOT_FOUND.into_response(),
+        Err(e) => {
+            warn!(error = %e, id, "Failed to delete board");
+            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response()
+        }
+    }
+}

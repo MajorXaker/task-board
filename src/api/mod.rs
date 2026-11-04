@@ -42,6 +42,7 @@ pub enum StateChange {
     BoxUpdated(PhraseBox),
     BoxDeleted { id: uuid::Uuid, board_id: i32 },
     BoardUpdated(Board),
+    BoardDeleted { id: i32 },
 }
 
 /// `GET /api/health` — public liveness probe.
@@ -62,6 +63,7 @@ async fn health() -> impl IntoResponse {
         board_routes::list_boards,
         board_routes::get_board,
         board_routes::update_board,
+        board_routes::delete_board,
         box_routes::list_boxes,
         box_routes::list_all_boxes,
         box_routes::create_box,
@@ -91,6 +93,7 @@ pub fn create_router(state: AppState, enable_docs: bool, static_dir: &str) -> Ro
         .route("/boards", get(board_routes::list_boards))
         .route("/boards/:id", get(board_routes::get_board))
         .route("/boards/:id", patch(board_routes::update_board))
+        .route("/boards/:id", delete(board_routes::delete_board))
         // boxes
         .route("/boards/:board_id/boxes", get(box_routes::list_boxes))
         .route("/boards/:board_id/boxes", post(box_routes::create_box))
