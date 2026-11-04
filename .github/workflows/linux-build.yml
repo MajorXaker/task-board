@@ -28,7 +28,7 @@ jobs:
       - name: Install build dependencies
         run: |
           pacman -Syu --noconfirm
-          pacman -S --noconfirm --needed git nodejs github-cli rust webkit2gtk-4.1 gtk3
+          pacman -S --noconfirm --needed git nodejs github-cli rust pkgconf webkit2gtk-4.1 gtk3
 
       - name: Checkout repository
         uses: actions/checkout@v4
