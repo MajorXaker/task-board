@@ -16,7 +16,7 @@ use std::path::PathBuf;
 use tao::{
     dpi::LogicalSize,
     event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::{ControlFlow, EventLoopBuilder},
     window::WindowBuilder,
 };
 use wry::WebViewBuilder;
@@ -27,7 +27,7 @@ enum UserEvent {
 }
 
 fn main() {
-    let event_loop: EventLoop<UserEvent> = EventLoop::with_user_event();
+    let event_loop = EventLoopBuilder::<UserEvent>::with_user_event().build();
     let proxy = event_loop.create_proxy();
 
     let window = WindowBuilder::new()
