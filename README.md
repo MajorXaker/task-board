@@ -127,6 +127,7 @@ Migrations run automatically on startup.
 | `ENABLE_DOCS` | `true` | Expose Swagger UI at `/api/docs` |
 | `DELETE_TAP_COUNT` | `3` | Taps/clicks to delete a box |
 | `SEPARATE_ADD_TAB` | `false` | Move Add/Manage controls to a dedicated tab (ideal for touch-only screens) |
+| `BOX_COLOR_1` … `BOX_COLOR_32` | built-in 8 | Colors offered for new boxes, `"#rrggbb,#rrggbb"` (bg, text). Indices 1–32, unset ones skipped; if none are set the built-in dark palette is used. Existing boxes keep their colors. |
 | `DEFAULT_CANVAS_WIDTH` | `1280` | Canvas width for new-box placement |
 | `DEFAULT_CANVAS_HEIGHT` | `800` | Canvas height for new-box placement |
 | `RUST_LOG` | `info` | Log level |
@@ -158,8 +159,8 @@ WebSocket messages are JSON with `{ "event": "BoxCreated"|"BoxUpdated"|"BoxDelet
 ## Frontend features
 
 - **5 boards** — switchable via top tab bar, each with configurable title and accent color
-- **8 color palettes** for boxes — click a box to pick up its color for the next one
-- **Add to current tab** — the toolbar Add button always targets the board tab you are on
+- **Configurable box colors** — palette defined by `BOX_COLOR_*` env vars (built-in 8-color dark palette by default); click a box to pick up its color for the next one, legacy colors included
+- **Add to current tab** — new boxes appear at the center of the screen and the toolbar Add button always targets the board tab you are on
 - **Drag & drop** — touch and mouse, boxes scroll the canvas if moved out of bounds
 - **Multi-tap delete** — configurable via `DELETE_TAP_COUNT` env var (default triple-tap)
 - **Collaborative** — WebSocket push + 1 s polling fallback
