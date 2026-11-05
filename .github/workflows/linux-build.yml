@@ -44,7 +44,11 @@ jobs:
           mkdir -p dist
           cp linux/target/release/taskboard dist/taskboard
           cp linux/taskboard.desktop dist/taskboard.desktop
-          tar czf "taskboard-linux-x64-${VERSION#v}.tar.gz" -C dist taskboard taskboard.desktop
+          cp linux/taskboard.svg dist/taskboard.svg
+          cp linux/README.txt dist/README.txt
+          install -m 755 linux/install.sh dist/install.sh
+          tar czf "taskboard-linux-x64-${VERSION#v}.tar.gz" -C dist \
+            taskboard taskboard.desktop taskboard.svg install.sh README.txt
           echo "ASSET=taskboard-linux-x64-${VERSION#v}.tar.gz" >> "$GITHUB_ENV"
 
       - name: Upload artifact

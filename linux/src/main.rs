@@ -17,9 +17,10 @@ use tao::{
     dpi::LogicalSize,
     event::{Event, WindowEvent},
     event_loop::{ControlFlow, EventLoopBuilder},
+    platform::unix::WindowExtUnix,
     window::WindowBuilder,
 };
-use wry::WebViewBuilder;
+use wry::{WebViewBuilder, WebViewBuilderExtUnix};
 
 /// Event sent from the webview IPC handler back to the event loop.
 enum UserEvent {
@@ -45,16 +46,23 @@ fn main() {
         }
     };
 
+    // Embed the webview in the window's GTK container instead of the raw
+    // window handle — the raw-handle path only works on X11, this works
+    // on Wayland and X11 alike.
+    let vbox = window
+        .default_vbox()
+        .expect("window has no default gtk box");
+
     let webview = match configured_url() {
         Some(url) => WebViewBuilder::new()
             .with_url(&url)
             .with_ipc_handler(ipc_handler)
-            .build(&window)
+            .build_gtk(vbox)
             .expect("failed to create webview"),
         None => WebViewBuilder::new()
             .with_html(CONFIG_PAGE)
             .with_ipc_handler(ipc_handler)
-            .build(&window)
+            .build_gtk(vbox)
             .expect("failed to create webview"),
     };
 

@@ -79,6 +79,11 @@ window — one config item (the server URL), built by CI on Arch Linux x64
   and remembers it in `~/.config/taskboard/url`.
 - **Config priority:** `--url http://host:port` argument, `TASKBOARD_URL`
   environment variable, config file.
+- **Wayland and X11** are both supported (the webview is embedded in the
+  window's GTK container, not the raw window handle).
+- **Tarball contents:** the `taskboard` binary, `taskboard.desktop` menu
+  entry template, icon, `install.sh` (installs to `~/.local` without sudo
+  or to `/usr/local` with sudo) and a short `README.txt`.
 - **Runtime requirements:** webkit2gtk-4.1 and gtk3
   (Arch: `sudo pacman -S webkit2gtk-4.1 gtk3`).
 - **Plain HTTP** is allowed — it targets LAN use.
