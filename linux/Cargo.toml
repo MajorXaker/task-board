@@ -1,0 +1,18 @@
+[package]
+name = "taskboard-client-linux"
+version = "0.1.0"
+edition = "2021"
+description = "Lite TaskBoard client for Linux — the server's web UI in a WebKitGTK window"
+license = "MIT"
+
+[[bin]]
+name = "taskboard"
+path = "src/main.rs"
+
+[dependencies]
+tao = "0.37"
+wry = "0.57"
+
+[profile.release]
+strip = true
+lto = true

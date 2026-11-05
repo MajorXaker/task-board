@@ -415,7 +415,9 @@ body {
   background: var(--color-surface-2);
   cursor: pointer;
 }
-.modal-actions { display: flex; gap: var(--space-3); justify-content: flex-end; }
+.modal-actions { display: flex; gap: var(--space-3); justify-content: flex-end; align-items: center; }
+.modal-actions .modal-spacer { flex: 1; }
+.modal-actions .btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ─── Sync indicator ─── */
 #sync-dot {
@@ -521,6 +523,7 @@ body {
     <li id="help-delete-hint"><strong>Delete a box:</strong> <span id="help-tap-count"></span> — or use the ✕ button that appears on hover.</li>
     <li><strong>Switch boards:</strong> Tap a board tab at the top.</li>
     <li><strong>Rename a board:</strong> Click the ✎ icon next to a tab, or use the Manage tab.</li>
+    <li><strong>Delete a board:</strong> Open the ✎ edit window and press Delete board — only possible when the board is empty and other boards remain.</li>
     <li><strong>Scroll:</strong> If boxes are placed beyond the visible area, scroll bars appear automatically.</li>
     <li><strong>Collaborate:</strong> Changes from other devices appear in real time via WebSocket, with 1-second polling as fallback.</li>
   </ul>
@@ -539,6 +542,8 @@ body {
       <input type="color" id="edit-board-color"/>
     </div>
     <div class="modal-actions">
+      <button class="btn btn-danger" id="delete-board-btn" title="">Delete board</button>
+      <span class="modal-spacer"></span>
       <button class="btn btn-ghost" id="cancel-board-edit">Cancel</button>
       <button class="btn btn-primary" id="save-board-edit">Save</button>
     </div>
@@ -648,6 +653,9 @@ function renderTabs() {
   // Remove all board tabs (keep manage tab)
   tabsRow.querySelectorAll('.board-tab:not(#manage-tab)').forEach(t => t.remove());
 
+  // Make sure every board has its canvas (boards can appear/disappear at runtime)
+  boards.forEach(b => getOrCreateCanvas(b.id));
+
   boards.forEach(b => {
     const tab = document.createElement('button');
     tab.className = 'board-tab' + (b.id === activeBoardId ? ' active' : '');
@@ -684,6 +692,7 @@ function renderTabs() {
 function switchBoard(id) {
   activeBoardId = id;  // id is a number, not null
   lastBoardId = id;
+  getOrCreateCanvas(id);
   document.querySelectorAll('.board-canvas').forEach(c => c.classList.remove('active'));
   document.getElementById('manage-panel').classList.remove('active');
 
@@ -707,6 +716,21 @@ function switchToManage() {
 }
 
 manageTab.addEventListener('click', switchToManage);
+
+// Remove a board: drop its tab + canvas, keep the active view on a
+// remaining board. The backend enforces "no boxes" and "at least one
+// board" — this only tidies the UI.
+function removeBoard(id) {
+  const canvas = document.getElementById('canvas-' + id);
+  if (canvas) canvas.remove();
+  boards = boards.filter(b => b.id !== id);
+  if (lastBoardId === id) lastBoardId = boards[0] ? boards[0].id : null;
+  if (activeBoardId === id) {
+    activeBoardId = boards[0] ? boards[0].id : null;
+    if (activeBoardId !== null) switchBoard(activeBoardId);
+  }
+  renderTabs();
+}
 
 function getOrCreateCanvas(boardId) {
   let canvas = document.getElementById('canvas-' + boardId);
@@ -1066,9 +1090,48 @@ function openBoardEdit(id) {
   editingBoardId = id;
   editTitleIn.value = b.title;
   editColorIn.value = b.color;
+  updateDeleteBoardBtn();
   editModal.classList.add('visible');
   editTitleIn.focus();
 }
+
+// The Delete button is only usable when the board has no boxes and it is
+// not the last remaining board. Mirrors the backend rules.
+const deleteBoardBtn = document.getElementById('delete-board-btn');
+function updateDeleteBoardBtn() {
+  if (!editingBoardId) return;
+  const canvas = document.getElementById('canvas-' + editingBoardId);
+  const boxCount = canvas ? canvas.querySelectorAll('.phrase-card').length : 0;
+  const deletable = boxCount === 0 && boards.length > 1;
+  deleteBoardBtn.disabled = !deletable;
+  deleteBoardBtn.title = !deletable
+    ? (boxCount > 0 ? 'Board still has boxes — move or delete them first'
+                    : 'Cannot delete the last board')
+    : '';
+}
+
+deleteBoardBtn.addEventListener('click', async () => {
+  if (!editingBoardId) return;
+  const b = boards.find(x => x.id === editingBoardId);
+  if (!b) return;
+  if (!window.confirm(`Delete board "${b.title}"?`)) return;
+  try {
+    const res = await fetch(API + `/boards/${editingBoardId}`, { method: 'DELETE' });
+    if (res.status === 204) {
+      removeBoard(editingBoardId);
+      editModal.classList.remove('visible');
+    } else if (res.status === 409) {
+      alert('Board still has boxes — move or delete them first.');
+    } else if (res.status === 400) {
+      alert('Cannot delete the last board.');
+    } else {
+      alert('Failed to delete board.');
+    }
+  } catch (e) {
+    console.error('Failed to delete board', e);
+    alert('Failed to delete board.');
+  }
+});
 
 document.getElementById('cancel-board-edit').addEventListener('click', () => editModal.classList.remove('visible'));
 editModal.addEventListener('click', e => { if (e.target === editModal) editModal.classList.remove('visible'); });
@@ -1180,9 +1243,16 @@ async function poll() {
 
     const updatedBoards = await apiFetch('/boards');
     let changed = false;
+    // Boards removed by other clients disappear from our UI too.
+    const updatedIds = new Set(updatedBoards.map(b => b.id));
+    boards.slice().forEach(b => {
+      if (!updatedIds.has(b.id)) removeBoard(b.id);
+    });
     updatedBoards.forEach(ub => {
       const idx = boards.findIndex(b => b.id === ub.id);
-      if (idx >= 0 && JSON.stringify(boards[idx]) !== JSON.stringify(ub)) {
+      if (idx < 0) {
+        boards.push(ub); changed = true;
+      } else if (JSON.stringify(boards[idx]) !== JSON.stringify(ub)) {
         boards[idx] = ub; changed = true;
       }
     });
@@ -1221,6 +1291,9 @@ function connectWS() {
           break;
         case 'BoardUpdated':
           applyBoardUpdate(msg.data);
+          break;
+        case 'BoardDeleted':
+          removeBoard(msg.data.id);
           break;
       }
     } catch (_) {}
