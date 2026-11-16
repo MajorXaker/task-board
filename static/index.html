@@ -313,7 +313,10 @@ body {
   line-height: 1.5; word-break: break-word;
   display: flex; align-items: flex-start; gap: var(--space-2);
   border: 1px solid rgba(0,0,0,.06);
-  animation: card-in 0.28s cubic-bezier(0.16,1,0.3,1) both;
+  /* 'backwards', not 'both': once the entry animation ends it must not keep
+     holding opacity:1 — WebKitGTK (Linux app) re-applied that on hover and
+     un-faded faded boxes. */
+  animation: card-in 0.28s cubic-bezier(0.16,1,0.3,1) backwards;
   transition: box-shadow var(--transition), transform var(--transition);
 }
 @keyframes card-in {
@@ -329,11 +332,30 @@ body {
   transition: box-shadow var(--transition);
 }
 /* Long-pressed boxes: semi-transparent with a dashed outline.
-   !important so it wins over the card-in animation's final opacity. */
+   !important as a second guard against animation/hover restyles. */
 .phrase-card.faded {
   opacity: var(--fade-opacity, 0.5) !important;
   outline: 2px dashed currentColor;
   outline-offset: 2px;
+}
+/* Hold-to-fade progress: a bright bar filling left → right while held. */
+.hold-progress {
+  position: absolute; left: 10px; right: 10px; bottom: 4px;
+  height: 3px; border-radius: 2px;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor, 0 0 2px #fff;
+  filter: brightness(1.35) saturate(1.3);
+  transform: scaleX(0); transform-origin: left center;
+  opacity: 0; pointer-events: none;
+}
+.hold-progress.running {
+  transform: scaleX(1); opacity: 1;
+  transition: transform var(--hold-duration, 1s) linear var(--hold-delay, 0s),
+              opacity 0.12s linear var(--hold-delay, 0s);
+}
+.hold-progress.done {
+  transform: scaleX(1); opacity: 0;
+  transition: opacity 0.3s ease-out;
 }
 .phrase-card.removing {
   pointer-events: none;
@@ -979,7 +1001,24 @@ function makeDraggable(card, boxId) {
   let startX, startY, origX, origY, moved = false;
   let holdTimer = null;
 
-  function cancelHold() { clearTimeout(holdTimer); holdTimer = null; }
+  function cancelHold() {
+    clearTimeout(holdTimer); holdTimer = null;
+    card.querySelectorAll('.hold-progress:not(.done)').forEach(b => b.remove());
+  }
+
+  // Progress bar for the hold. Starts after a short delay so ordinary
+  // clicks and drags don't flash it.
+  function startHoldProgress() {
+    const total = holdSeconds * 1000;
+    const delay = Math.min(150, total / 3);
+    const bar = document.createElement('div');
+    bar.className = 'hold-progress';
+    bar.style.setProperty('--hold-delay', delay + 'ms');
+    bar.style.setProperty('--hold-duration', (total - delay) + 'ms');
+    card.appendChild(bar);
+    void bar.offsetWidth;          // commit the scaleX(0) start state
+    bar.classList.add('running');
+  }
 
   function onDown(e) {
     if (e.target.classList.contains('delete-btn')) return;
@@ -991,11 +1030,17 @@ function makeDraggable(card, boxId) {
     delete card.dataset.holdFired;
     // Long press (held still for holdSeconds) toggles the faded look.
     cancelHold();
+    startHoldProgress();
     holdTimer = setTimeout(() => {
       holdTimer = null;
       if (moved || !card.isConnected) return;
       card.dataset.holdFired = '1';
       toggleFaded(card, boxId);
+      // Full bar flashes, then fades out.
+      card.querySelectorAll('.hold-progress').forEach(b => {
+        b.classList.remove('running'); b.classList.add('done');
+        setTimeout(() => b.remove(), 320);
+      });
     }, holdSeconds * 1000);
     draggingBoxIds.add(boxId);
     card.style.zIndex = ++zCounter;
