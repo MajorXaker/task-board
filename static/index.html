@@ -328,6 +328,13 @@ body {
   z-index: 9999 !important;
   transition: box-shadow var(--transition);
 }
+/* Long-pressed boxes: semi-transparent with a dashed outline.
+   !important so it wins over the card-in animation's final opacity. */
+.phrase-card.faded {
+  opacity: var(--fade-opacity, 0.5) !important;
+  outline: 2px dashed currentColor;
+  outline-offset: 2px;
+}
 .phrase-card.removing {
   pointer-events: none;
   transition: opacity 0.18s, transform 0.18s !important;
@@ -520,6 +527,7 @@ body {
   <ul>
     <li id="help-add-hint"><strong>Add a box:</strong> <span id="help-add-text"></span> New boxes appear at the center of the screen — drag them wherever they belong.</li>
     <li><strong>Move a box:</strong> Drag it anywhere on the canvas. Position is saved automatically.</li>
+    <li><strong>Fade a box:</strong> Press and hold it without moving (<span id="help-hold-seconds">1</span>s) — it turns semi-transparent with a dashed outline. Hold again to restore it.</li>
     <li id="help-delete-hint"><strong>Delete a box:</strong> <span id="help-tap-count"></span> — or use the ✕ button that appears on hover.</li>
     <li><strong>Switch boards:</strong> Tap a board tab at the top.</li>
     <li><strong>Rename a board:</strong> Click the ✎ icon next to a tab, or use the Manage tab.</li>
@@ -580,6 +588,8 @@ let boxColors      = DEFAULT_BOX_COLORS;  // replaced by server config when pres
 let selectedColor  = null;   // {bg, text} — may be a legacy color not in boxColors
 let zCounter       = 10;
 let deleteTapCount = 3;
+let holdSeconds = 1.0;      // BOX_HOLD_SECONDS — long press toggles the faded look
+let fadeOpacity = 0.5;      // BOX_FADE_OPACITY — opacity of a faded box
 let separateAddTab = false;  // overridden from /api/config
 
 const tapState = {};        // per-box tap tracking
@@ -852,6 +862,7 @@ function renderBox(box) {
     existing.style.color = box.color_text;
     existing.dataset.colorBg = box.color_bg;
     existing.dataset.colorText = box.color_text;
+    existing.classList.toggle('faded', !!box.faded);
     existing.querySelector('.phrase-text').textContent = box.text;
     const curBoard = parseInt(existing.dataset.boardId);
     if (curBoard !== box.board_id) {
@@ -877,6 +888,7 @@ function renderBox(box) {
   card.style.background = box.color_bg;
   card.style.color = box.color_text;
   card.style.zIndex = box.z_index;
+  if (box.faded) card.classList.add('faded');
 
   const textEl = document.createElement('span');
   textEl.className = 'phrase-text';
@@ -930,6 +942,9 @@ async function removeBox(boxId, card) {
 function makeMultiTappable(card, boxId) {
   card.addEventListener('click', function onTap(e) {
     if (e.target.classList.contains('delete-btn')) return;
+    // The click that ends a long press is not a tap (no color pick, no
+    // delete count).
+    if (card.dataset.holdFired === '1') { delete card.dataset.holdFired; return; }
 
     // Single click picks up this box's color: the palette selector switches
     // to it, so the next box you create matches this one. Works for legacy
@@ -962,6 +977,9 @@ function makeMultiTappable(card, boxId) {
 // ════════════════════════════════════════════════════════
 function makeDraggable(card, boxId) {
   let startX, startY, origX, origY, moved = false;
+  let holdTimer = null;
+
+  function cancelHold() { clearTimeout(holdTimer); holdTimer = null; }
 
   function onDown(e) {
     if (e.target.classList.contains('delete-btn')) return;
@@ -970,6 +988,15 @@ function makeDraggable(card, boxId) {
     origX = parseFloat(card.style.left) || 0;
     origY = parseFloat(card.style.top)  || 0;
     moved = false;
+    delete card.dataset.holdFired;
+    // Long press (held still for holdSeconds) toggles the faded look.
+    cancelHold();
+    holdTimer = setTimeout(() => {
+      holdTimer = null;
+      if (moved || !card.isConnected) return;
+      card.dataset.holdFired = '1';
+      toggleFaded(card, boxId);
+    }, holdSeconds * 1000);
     draggingBoxIds.add(boxId);
     card.style.zIndex = ++zCounter;
     card.classList.add('dragging');
@@ -985,7 +1012,7 @@ function makeDraggable(card, boxId) {
     const touch = e.touches ? e.touches[0] : e;
     const dx = touch.clientX - startX;
     const dy = touch.clientY - startY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) { moved = true; cancelHold(); }
     const newX = Math.max(0, origX + dx);
     const newY = Math.max(0, origY + dy);
     card.style.left = newX + 'px';
@@ -999,6 +1026,7 @@ function makeDraggable(card, boxId) {
   }
 
   function onUp() {
+    cancelHold();
     draggingBoxIds.delete(boxId);
     card.classList.remove('dragging');
     document.removeEventListener('mousemove', onMove);
@@ -1020,6 +1048,17 @@ function makeDraggable(card, boxId) {
 
   card.addEventListener('mousedown',  onDown);
   card.addEventListener('touchstart', onDown, { passive: false });
+}
+
+// Flip a box's faded state locally and persist it (other clients follow via
+// WebSocket / polling). Reverts if the server rejects the change.
+function toggleFaded(card, boxId) {
+  const faded = !card.classList.contains('faded');
+  card.classList.toggle('faded', faded);
+  apiFetch(`/boxes/${boxId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ faded }),
+  }).catch(() => card.classList.toggle('faded', !faded));
 }
 
 // ════════════════════════════════════════════════════════
@@ -1220,6 +1259,11 @@ async function loadConfig() {
     const cfg = await apiFetch('/config');
     if (!cfg) return;
     if (cfg.delete_tap_count) deleteTapCount = cfg.delete_tap_count;
+    if (cfg.hold_seconds > 0) holdSeconds = cfg.hold_seconds;
+    if (typeof cfg.fade_opacity === 'number') fadeOpacity = cfg.fade_opacity;
+    document.documentElement.style.setProperty('--fade-opacity', String(fadeOpacity));
+    const hs = document.getElementById('help-hold-seconds');
+    if (hs) hs.textContent = String(holdSeconds);
     separateAddTab = !!cfg.separate_add_tab;
     // Palette from the server (BOX_COLOR_* env vars); falls back to the
     // built-in dark palette when absent or empty.

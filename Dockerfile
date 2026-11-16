@@ -1,6 +1,7 @@
 # ── Stage 1: builder ──────────────────────────────────────────────────────────
-# rust:1-slim = latest stable (>= 1.85, required for edition = "2024" in Cargo.toml)
-FROM rust:1-slim AS builder
+# Pinned: edition = "2024" needs >= 1.85, and Rust 1.100's type-inference
+# change (rust-lang/rust#148922) breaks sqlx 0.7. Unpin after moving to sqlx 0.8.
+FROM rust:1.99-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \

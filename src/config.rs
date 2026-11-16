@@ -67,6 +67,11 @@ pub struct AppSettings {
     /// dark palette when none are set). Boxes already created keep their
     /// stored colors regardless of this list.
     pub box_colors: Vec<BoxColor>,
+    /// Seconds a box must be held (mouse/finger down, not moving) to toggle
+    /// its faded look (`BOX_HOLD_SECONDS`).
+    pub hold_seconds: f64,
+    /// Opacity of a faded box, 0.0–1.0 (`BOX_FADE_OPACITY`).
+    pub fade_opacity: f64,
 }
 
 impl Default for AppSettings {
@@ -77,6 +82,8 @@ impl Default for AppSettings {
             delete_tap_count: 3,
             separate_add_tab: false,
             box_colors: default_box_colors(),
+            hold_seconds: 1.0,
+            fade_opacity: 0.5,
         }
     }
 }
@@ -154,6 +161,16 @@ pub fn load_config() -> Result<AppConfig> {
             .context("DELETE_TAP_COUNT must be 1-255")?,
         separate_add_tab: env_or("SEPARATE_ADD_TAB", "false").to_lowercase() == "true",
         box_colors: load_box_colors_from_env().unwrap_or_else(default_box_colors),
+        hold_seconds: env_or("BOX_HOLD_SECONDS", "1.0")
+            .parse::<f64>()
+            .ok()
+            .filter(|v| v.is_finite() && *v > 0.0)
+            .context("BOX_HOLD_SECONDS must be a positive number of seconds")?,
+        fade_opacity: env_or("BOX_FADE_OPACITY", "0.5")
+            .parse::<f64>()
+            .ok()
+            .filter(|v| (0.0..=1.0).contains(v))
+            .context("BOX_FADE_OPACITY must be a number between 0 and 1")?,
     };
 
     Ok(AppConfig { database: db, server, app })

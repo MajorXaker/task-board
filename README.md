@@ -131,6 +131,8 @@ Migrations run automatically on startup.
 | `STATIC_DIR` | `./static` | Path to frontend static files |
 | `ENABLE_DOCS` | `true` | Expose Swagger UI at `/api/docs` |
 | `DELETE_TAP_COUNT` | `3` | Taps/clicks to delete a box |
+| `BOX_HOLD_SECONDS` | `1.0` | Seconds to press and hold a box (without moving) to toggle its faded look |
+| `BOX_FADE_OPACITY` | `0.5` | Opacity of a faded box, `0.0`–`1.0` |
 | `SEPARATE_ADD_TAB` | `false` | Move Add/Manage controls to a dedicated tab (ideal for touch-only screens) |
 | `BOX_COLOR_1` … `BOX_COLOR_32` | built-in 8 | Colors offered for new boxes, `"#rrggbb,#rrggbb"` (bg, text). Indices 1–32, unset ones skipped; if none are set the built-in dark palette is used. Existing boxes keep their colors. |
 | `DEFAULT_CANVAS_WIDTH` | `1280` | Canvas width for new-box placement |
@@ -167,6 +169,7 @@ WebSocket messages are JSON with `{ "event": "BoxCreated"|"BoxUpdated"|"BoxDelet
 - **Configurable box colors** — palette defined by `BOX_COLOR_*` env vars (built-in 8-color dark palette by default); click a box to pick up its color for the next one, legacy colors included
 - **Add to current tab** — new boxes appear at the center of the screen and the toolbar Add button always targets the board tab you are on
 - **Drag & drop** — touch and mouse, boxes scroll the canvas if moved out of bounds
+- **Hold to fade** — press and hold a box for `BOX_HOLD_SECONDS` to make it semi-transparent (`BOX_FADE_OPACITY`) with a dashed outline; hold again to restore. Saved and synced to all clients
 - **Multi-tap delete** — configurable via `DELETE_TAP_COUNT` env var (default triple-tap)
 - **Collaborative** — WebSocket push + 1 s polling fallback
 - **Help panel** — instructions accessible via the `?` button in the toolbar

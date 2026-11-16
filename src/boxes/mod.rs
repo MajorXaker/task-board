@@ -18,6 +18,8 @@ pub struct PhraseBox {
     pub pos_x: f64,
     pub pos_y: f64,
     pub z_index: i32,
+    /// Semi-transparent with a dashed outline (toggled by a long press).
+    pub faded: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -44,6 +46,8 @@ pub struct UpdateBoxRequest {
     pub pos_y: Option<f64>,
     pub z_index: Option<i32>,
     pub board_id: Option<i32>,
+    /// Toggle the faded (semi-transparent, dashed outline) look.
+    pub faded: Option<bool>,
 }
 
 /// Full board snapshot sent to clients on poll / WS push.

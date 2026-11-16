@@ -110,14 +110,24 @@ pub fn create_router(state: AppState, enable_docs: bool, static_dir: &str) -> Ro
         api
     };
 
-    // Serve the frontend SPA from /static, with fallback to index.html
+    // Serve the frontend SPA from /static, with fallback to index.html.
+    //
+    // `Cache-Control: no-cache` makes browsers / Android / Linux WebViews
+    // revalidate the page on every load (cheap 304 via Last-Modified)
+    // instead of heuristically reusing a stale index.html after an upgrade.
+    use axum::http::{header, HeaderValue};
     use tower_http::services::{ServeDir, ServeFile};
+    use tower_http::set_header::SetResponseHeader;
+    let static_files = ServeDir::new(static_dir)
+        .not_found_service(ServeFile::new(format!("{}/index.html", static_dir)));
     Router::new()
         .nest("/api", api)
         .nest_service(
             "/",
-            ServeDir::new(static_dir).not_found_service(ServeFile::new(
-                format!("{}/index.html", static_dir),
-            )),
+            SetResponseHeader::overriding(
+                static_files,
+                header::CACHE_CONTROL,
+                HeaderValue::from_static("no-cache"),
+            ),
         )
 }
