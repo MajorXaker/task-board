@@ -19,6 +19,10 @@ pub struct ClientConfig {
     pub separate_add_tab: bool,
     /// Colors available for new boxes (from `BOX_COLOR_*` env vars).
     pub box_colors: Vec<crate::config::BoxColor>,
+    /// Seconds to hold a box to toggle its faded look.
+    pub hold_seconds: f64,
+    /// Opacity of a faded box (0.0–1.0).
+    pub fade_opacity: f64,
 }
 
 /// `GET /api/config` — return client-relevant runtime settings.
@@ -34,5 +38,7 @@ pub async fn get_config(State(state): State<AppState>) -> impl IntoResponse {
         default_canvas_height: state.app_settings.default_canvas_height,
         separate_add_tab: state.app_settings.separate_add_tab,
         box_colors: state.app_settings.box_colors.clone(),
+        hold_seconds: state.app_settings.hold_seconds,
+        fade_opacity: state.app_settings.fade_opacity,
     })
 }

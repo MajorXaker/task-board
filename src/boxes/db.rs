@@ -10,7 +10,7 @@ use super::{CreateBoxRequest, PhraseBox, UpdateBoxRequest};
 pub async fn get_boxes_for_board(pool: &PgPool, board_id: i32) -> Result<Vec<PhraseBox>> {
     sqlx::query_as::<_, PhraseBox>(
         r#"
-        SELECT id, board_id, text, color_bg, color_text, pos_x, pos_y, z_index, created_at, updated_at
+        SELECT id, board_id, text, color_bg, color_text, pos_x, pos_y, z_index, faded, created_at, updated_at
         FROM boxes
         WHERE board_id = $1
         ORDER BY z_index ASC, created_at ASC
@@ -26,7 +26,7 @@ pub async fn get_boxes_for_board(pool: &PgPool, board_id: i32) -> Result<Vec<Phr
 pub async fn get_all_boxes(pool: &PgPool) -> Result<Vec<PhraseBox>> {
     sqlx::query_as::<_, PhraseBox>(
         r#"
-        SELECT id, board_id, text, color_bg, color_text, pos_x, pos_y, z_index, created_at, updated_at
+        SELECT id, board_id, text, color_bg, color_text, pos_x, pos_y, z_index, faded, created_at, updated_at
         FROM boxes
         ORDER BY board_id, z_index ASC, created_at ASC
         "#,
@@ -45,7 +45,7 @@ pub async fn create_box(pool: &PgPool, req: &CreateBoxRequest, default_x: f64, d
         r#"
         INSERT INTO boxes (board_id, text, color_bg, color_text, pos_x, pos_y)
         VALUES ($1, $2, $3, $4, $5, $6)
-        RETURNING id, board_id, text, color_bg, color_text, pos_x, pos_y, z_index, created_at, updated_at
+        RETURNING id, board_id, text, color_bg, color_text, pos_x, pos_y, z_index, faded, created_at, updated_at
         "#,
     )
     .bind(req.board_id)
@@ -71,9 +71,10 @@ pub async fn update_box(pool: &PgPool, id: Uuid, req: &UpdateBoxRequest) -> Resu
             pos_y      = COALESCE($5, pos_y),
             z_index    = COALESCE($6, z_index),
             board_id   = COALESCE($7, board_id),
+            faded      = COALESCE($8, faded),
             updated_at = NOW()
-        WHERE id = $8
-        RETURNING id, board_id, text, color_bg, color_text, pos_x, pos_y, z_index, created_at, updated_at
+        WHERE id = $9
+        RETURNING id, board_id, text, color_bg, color_text, pos_x, pos_y, z_index, faded, created_at, updated_at
         "#,
     )
     .bind(req.text.as_deref())
@@ -83,6 +84,7 @@ pub async fn update_box(pool: &PgPool, id: Uuid, req: &UpdateBoxRequest) -> Resu
     .bind(req.pos_y)
     .bind(req.z_index)
     .bind(req.board_id)
+    .bind(req.faded)
     .bind(id)
     .fetch_optional(pool)
     .await

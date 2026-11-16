@@ -48,6 +48,8 @@ services:
       SERVER_PORT: 8080
       ENABLE_DOCS: "true"        # set to "false" to hide Swagger UI
       DELETE_TAP_COUNT: "3"      # taps/clicks required to delete a box
+      BOX_HOLD_SECONDS: "1.0"    # hold a box this long to fade / unfade it
+      BOX_FADE_OPACITY: "0.5"    # opacity of a faded box (0.0–1.0)
       SEPARATE_ADD_TAB: "false"       # set to "true" for dedicated manage tab
       # Custom box colors — "#rrggbb,#rrggbb" pairs, indices 1..32, e.g.:
       # BOX_COLOR_1: "#422006,#fde68a"
